@@ -1,0 +1,12 @@
+[Unit]
+Description=X730 Case Reboot
+DefaultDependencies=no
+Before=reboot.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/local/bin/x730shutdown.sh "1.5"
+
+[Install]
+WantedBy=reboot.target
