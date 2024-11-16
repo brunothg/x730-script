@@ -41,5 +41,6 @@ cp "$SCRIPT_DIR"/src/*.sh /usr/local/bin/
 chmod 644 "$SCRIPT_DIR"/src/*.service
 cp "$SCRIPT_DIR"/src/*.service /etc/systemd/system/
 
-systemctl enable x730shutdown
+systemctl enable x730poweroff
+systemctl enable x730reboot
 systemctl enable --now x730button

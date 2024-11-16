@@ -1,12 +1,13 @@
 [Unit]
 Description=X730 Case Reboot
 DefaultDependencies=no
+Conflicts=poweroff.target halt.target
 Before=reboot.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=no
-ExecStart=/usr/local/bin/x730shutdown.sh "1.5"
+ExecStart=/usr/local/bin/x730shutdown.sh "1"
 
 [Install]
 WantedBy=reboot.target
