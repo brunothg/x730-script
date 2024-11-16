@@ -1,26 +1,23 @@
 # x730-script
-This is the safe shutdown script for x730;
 
-NOTE:
+This is the safe shutdown script for x730
 
-We test this shell script base official Raspbian '2018-11-13-raspbian-stretch.img' version;
-We test this shell script base official Raspbian '2019-09-26 Raspbian Buster' version also;
+> **NOTE**
+> This version targets newer Raspberry Pi OS versions supporting `pinctrl` instead of `/sys/class/gpio` or `raspi-gpio`
 
-How to use?
 
-* step 1:
-> wget https://raw.githubusercontent.com/geekworm-com/x730-script/master/x730.sh
+## Prerequisites
 
-> sudo chmod +x x730.sh
+1. OS supporting systemd
+2. `/bin/bash` binary
+3. `pinctrl` binary on path
 
-> sudo bash x730.sh
 
-* step 2:
+## Installation
 
-> printf "%s\\n" "alias x730off='sudo x730shutdown.sh'" >> ~/.bashrc
+TODO
 
-* step 3:
-> sudo reboot
 
-* how to safe shut down, run the following comamdn:
-> x730off
+## Usage
+
+Use your normal GUI or terminal possibilities for poweroff/reboot or press the button of you PI's case (short reboot, long shutdown). 

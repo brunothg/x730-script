@@ -1,0 +1,11 @@
+[Unit]
+Description=X730 Case Button
+After=local-fs.target
+
+[Service]
+Type=exec
+RemainAfterExit=no
+ExecStart=/usr/local/bin/x730button.sh
+
+[Install]
+WantedBy=multi-user.target

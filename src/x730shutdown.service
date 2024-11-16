@@ -1,0 +1,12 @@
+[Unit]
+Description=X730 Case Shutdown
+DefaultDependencies=no
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/local/bin/x730shutdown.sh
+
+[Install]
+WantedBy=shutdown.target
