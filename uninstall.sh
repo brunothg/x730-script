@@ -18,9 +18,11 @@ fi
 
 
 # Uninstall systemd units
-systemctl disable x730shutdown
+systemctl disable x730poweroff
+systemctl disable x730reboot
 systemctl disable --now x730button
-rm /etc/systemd/system/x730shutdown.service
+rm /etc/systemd/system/x730poweroff.service
+rm /etc/systemd/system/x730reboot.service
 rm /etc/systemd/system/x730button.service
 
 # Unnstall shell scripts

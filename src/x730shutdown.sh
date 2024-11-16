@@ -5,6 +5,7 @@ BUTTON=18
 pinctrl set "$BUTTON" op pn dl
 pinctrl set "$BUTTON" dh
 
+# 1-2 sec for reboot, 3-7 for poweroff (default) 8+ crash (pull the plug)
 SLEEP=${1:-4}
 
 re='^[0-9\.]+$'
