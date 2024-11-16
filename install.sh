@@ -17,9 +17,25 @@ then
 fi
 
 
+# Check prequisites
+echo "Checking prequisites ..."
+
+for bin in "systemctl" "pinctrl"
+do
+  if ! type "$bin" &> /dev/null
+  then
+    echo "$bin ...  missing"
+    exit 1
+  else
+    echo "$bin ... passed"
+  fi
+done
+
+
 # Install shell scripts
 chmod 755 "$SCRIPT_DIR"/src/*.sh
 cp "$SCRIPT_DIR"/src/*.sh /usr/local/bin/
+
 
 # Install systemd units
 chmod 644 "$SCRIPT_DIR"/src/*.service
