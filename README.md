@@ -15,7 +15,7 @@ This is the safe shutdown script for x730
 
 ## Installation
 
-TODO
+Run `sudo install.sh`
 
 
 ## Usage
