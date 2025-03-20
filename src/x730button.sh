@@ -15,7 +15,7 @@ getShutdownSignal() {
 }
 
 getPulseTimestamp() {
-	echo "$(date +%s%N | cut -b1-13)"
+	echo "$(date +%s%3N)"
 }
 
 sleepPulse() {
