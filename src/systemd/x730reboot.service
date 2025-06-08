@@ -7,7 +7,7 @@ Before=reboot.target
 [Service]
 Type=oneshot
 RemainAfterExit=no
-ExecStart=/usr/local/bin/x730shutdown.sh "1"
+# TODO ExecStart=/usr/local/bin/x730shutdown.sh "1"
 
 [Install]
 WantedBy=reboot.target

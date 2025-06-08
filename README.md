@@ -1,21 +1,18 @@
-# x730-script
+# x730
 
-This is the safe shutdown script for x730
+Command line interface for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi.
 
 > **NOTE**
-> This version targets newer Raspberry Pi OS versions supporting `pinctrl` instead of `/sys/class/gpio` or `raspi-gpio`
+> 
+> This version targets Raspberry Pi OS versions supporting `gpiozero`  
+> For a bash and `pinctrl` implementation refer to version 2.x.
 
 
-## Prequisites
+## Prerequisites
 
-1. OS supporting systemd
-2. `/bin/bash` binary
-3. `pinctrl` binary on path
-
-
-## Installation
-
-Run `sudo install.sh`
+1. OS supporting `systemd` and [gpiozero](https://pypi.org/project/gpiozero/)
+2. `python3`
+3. `uv`
 
 
 ## Usage

@@ -1,0 +1,19 @@
+[project]
+name = "x730"
+version = "1.0.0"
+description = "Command line interface for controlling the Geekworm X730 expansion board for the Raspberry Pi."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "gpiozero~=2.0",
+]
+
+[project.urls]
+Repository = "https://github.com/brunothg/x730-script"
+
+[project.scripts]
+x730 = "x730.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
