@@ -1,11 +1,11 @@
 [Unit]
-Description=X730 Case Button
+Description=X730 Daemon
 After=local-fs.target
 
 [Service]
 Type=exec
 RemainAfterExit=no
-# TODO ExecStart=/usr/local/bin/x730button.sh
+ExecStart=/usr/local/bin/x730 daemon
 
 [Install]
 WantedBy=multi-user.target

@@ -7,7 +7,7 @@ Before=poweroff.target halt.target shutdown.target
 [Service]
 Type=oneshot
 RemainAfterExit=no
-# TODO ExecStart=/usr/local/bin/x730shutdown.sh "4"
+ExecStart=/usr/local/bin/x730 shutdown --poweroff
 
 [Install]
 WantedBy=poweroff.target halt.target shutdown.target
