@@ -15,6 +15,11 @@ Command line interface for controlling the [Geekworm X730 expansion board](https
 3. `uv`
 
 
+## Development
+
+In order to run the program without installation and/or compiling uvx (e.g. `uvx --refresh . -vvvv --help`) can be used.
+
+
 ## Usage
 
 Use default GUI or terminal possibilities for poweroff/reboot or press the button of you PI's case (short reboot, long shutdown). 
