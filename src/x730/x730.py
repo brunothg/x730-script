@@ -1,5 +1,4 @@
 import logging
-import math
 import subprocess
 import time
 from enum import Enum
@@ -18,10 +17,6 @@ class Pins(Enum):
     BOOT = 17
 
 
-def milliseconds() -> int:
-    return math.floor(time.monotonic() * 1000)
-
-
 class X730:
     """
     Singleton class for controlling the X730 expansion board.
@@ -30,8 +25,8 @@ class X730:
     """
     _LOG = logging.getLogger(__name__)
 
-    REBOOT_PULSE_MINIMUM_MS = 200
-    REBOOT_PULSE_MAXIMUM_MS = 600
+    REBOOT_PULSE_MINIMUM: float = 0.2
+    REBOOT_PULSE_MAXIMUM: float = 0.6
 
     def __new__(cls):
         singleton_attr_name = '_INSTANCE'
@@ -63,14 +58,14 @@ class X730:
         self.close()
 
     def _on_shutdown_status(self):
-        begin_ms = milliseconds()
-        self._shutdown_status_pin.wait_for_inactive(X730.REBOOT_PULSE_MAXIMUM_MS)
-        end_ms = milliseconds()
-        diff_ms = end_ms - begin_ms
-        X730._LOG.debug(f"Shutdown status: {diff_ms} ms")
+        begin_time = time.monotonic()
+        is_reboot_pulse = self._shutdown_status_pin.wait_for_inactive(X730.REBOOT_PULSE_MAXIMUM)
+        diff_time = time.monotonic() - begin_time
+        diff_time = min(diff_time, X730.REBOOT_PULSE_MAXIMUM) if is_reboot_pulse else diff_time
+        X730._LOG.debug(f"Shutdown status: {diff_time} -> {'reboot' if is_reboot_pulse else 'shutdown'}")
 
-        if diff_ms > self.REBOOT_PULSE_MINIMUM_MS:
-            if diff_ms < self.REBOOT_PULSE_MAXIMUM_MS:
+        if diff_time > X730.REBOOT_PULSE_MINIMUM:
+            if diff_time <= X730.REBOOT_PULSE_MAXIMUM:
                 self._sys_reboot()
             else:
                 self._sys_poweroff()
@@ -85,7 +80,6 @@ class X730:
 
         self._shutdown_status_pin = DigitalInputDevice(pin=Pins.SHUTDOWN.value, pull_up=False, bounce_time=None)
         self._shutdown_status_pin.when_activated = self._on_shutdown_status
-
 
     def close(self):
         if not self._opened:
