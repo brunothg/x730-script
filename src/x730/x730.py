@@ -40,6 +40,9 @@ class X730:
         self._shutdown_button_pin: DigitalOutputDevice | None = None
         self._shutdown_status_pin: DigitalInputDevice | None = None
 
+    def __del__(self):
+        self.close()
+
     def __enter__(self) -> Self:
         self.open()
         return self
@@ -58,17 +61,19 @@ class X730:
         self.close()
 
     def _on_shutdown_status(self):
-        begin_time = time.monotonic()
-        is_reboot_pulse = self._shutdown_status_pin.wait_for_inactive(X730.REBOOT_PULSE_MAXIMUM)
-        diff_time = time.monotonic() - begin_time
-        diff_time = min(diff_time, X730.REBOOT_PULSE_MAXIMUM) if is_reboot_pulse else diff_time
-        X730._LOG.debug(f"Shutdown status: {diff_time} -> {'reboot' if is_reboot_pulse else 'shutdown'}")
+        min_pulse = X730.REBOOT_PULSE_MINIMUM
+        is_min_pulse = not self._shutdown_status_pin.wait_for_inactive(timeout=min_pulse)
+        if not is_min_pulse:
+            X730._LOG.debug(f"Shutdown status: short pulse")
+            return
 
-        if diff_time > X730.REBOOT_PULSE_MINIMUM:
-            if diff_time <= X730.REBOOT_PULSE_MAXIMUM:
-                self._sys_reboot()
-            else:
-                self._sys_poweroff()
+        reboot_pulse = X730.REBOOT_PULSE_MAXIMUM - X730.REBOOT_PULSE_MINIMUM
+        is_reboot_pulse = self._shutdown_status_pin.wait_for_inactive(timeout=reboot_pulse)
+        X730._LOG.debug(f"Shutdown status: {'reboot' if is_reboot_pulse else 'shutdown'} pulse")
+        if is_reboot_pulse:
+            self._sys_reboot()
+        else:
+            self._sys_poweroff()
 
     def open(self):
         if not self._opened:
