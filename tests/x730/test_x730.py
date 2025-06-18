@@ -1,7 +1,6 @@
 import unittest
 from . import pin_factory
 
-
 class X730TestCase(unittest.TestCase):
 
     def setUp(self):
