@@ -11,4 +11,4 @@ default:
 
 test:
 	@echo "Run tests."
-	uv run python -m unittest discover --top-level-directory 'src' --start-directory 'tests' --pattern 'test_*.py' -v
+	cd "$(PWD)" && uv run --module unittest discover --start-directory 'tests' --pattern 'test_*.py' -v
