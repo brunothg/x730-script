@@ -17,8 +17,9 @@ classifiers = [
 license = "Apache-2.0"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
-    "gpiozero~=2.0",
+    "gpiozero~=2.0.0",
 ]
+
 
 [project.urls]
 Homepage = "https://github.com/brunothg/x730-script"
