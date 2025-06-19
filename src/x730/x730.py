@@ -74,7 +74,7 @@ class X730:
             self._sys_poweroff()
 
     def open(self):
-        if not self._opened:
+        if self._opened:
             return
         self._opened = True
 
@@ -107,7 +107,7 @@ class X730:
         """
         X730._LOG.info("Powering off board")
         self._shutdown_button_pin.on()
-        time.sleep(5)
+        time.sleep(5 if not force else 10)
         self._shutdown_button_pin.off()
 
     def restart(self) -> None:
