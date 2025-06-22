@@ -22,8 +22,8 @@ class CLI:
         shutdown_parser = subparsers.add_parser('shutdown', help="Shutdown the system")
         shutdown_parser.set_defaults(command=self.shutdown)
         shutdown_type_group = shutdown_parser.add_mutually_exclusive_group(required=True)
-        shutdown_type_group.add_argument('-p', '--poweroff', action='store_false', dest='restart', help="Power off the system")
-        shutdown_type_group.add_argument('-r', '--restart', action='store_true', dest='restart', help="Restart the system")
+        shutdown_type_group.add_argument('-p', '--poweroff', action='store_false', dest='reboot', help="Power off the system")
+        shutdown_type_group.add_argument('-r', '--reboot', action='store_true', dest='reboot', help="Reboot the system")
 
         daemon_parser = subparsers.add_parser('daemon', help="Start the X730 expansion board daemon")
         daemon_parser.set_defaults(command=self.daemon)
@@ -31,7 +31,7 @@ class CLI:
     def help(self) -> None:
         self._parser.print_help()
 
-    def shutdown(self, restart: bool = False) -> None:
+    def shutdown(self, reboot: bool = False) -> None:
         # TODO shutdown
         pass
 
