@@ -78,11 +78,12 @@ class X730:
         if not diff_shutdown_status[0] == -1:  # not High -> Low edge
             return
         pulse = diff_shutdown_status[1]
+        X730._LOG.debug(f"Shutdown status: {pulse} pulse")
 
         min_pulse = X730.SHUTDOWN_STATUS_REBOOT_PULSE_MINIMUM
         is_min_pulse = pulse > min_pulse
         if not is_min_pulse:
-            X730._LOG.debug(f"Shutdown status: short pulse")
+            X730._LOG.debug("Shutdown status: short pulse")
             return
 
         reboot_pulse = X730.SHUTDOWN_STATUS_REBOOT_PULSE_MAXIMUM
