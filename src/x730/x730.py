@@ -67,13 +67,13 @@ class X730:
         self.close()
 
     def _on_shutdown_status(self, status: bool) -> None:
-        old_shutdown_status = self._shutdown_status
         new_shutdown_status = (status, time.monotonic())
+        old_shutdown_status = self._shutdown_status
+        self._shutdown_status = new_shutdown_status
         diff_shutdown_status = (
             int(new_shutdown_status[0]) - int(old_shutdown_status[0]),
             new_shutdown_status[1] - old_shutdown_status[1]
         )
-        self._shutdown_status = new_shutdown_status
 
         if not diff_shutdown_status[0] == -1:  # not High -> Low edge
             return
