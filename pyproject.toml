@@ -7,7 +7,7 @@ authors = [
 description = "Command line interface for controlling the Geekworm X730 expansion board for the Raspberry Pi."
 keywords = ["raspberrypi", "raspi", "x730"]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",

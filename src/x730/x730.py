@@ -2,7 +2,7 @@ import logging
 import subprocess
 import time
 from enum import Enum
-from typing import Optional
+from typing import Optional, Self
 
 from gpiozero import DigitalInputDevice, DigitalOutputDevice
 
@@ -49,7 +49,7 @@ class X730:
     def __del__(self):
         self.close()
 
-    def __enter__(self) -> 'X730':
+    def __enter__(self) -> Self:
         self.open()
         return self
 

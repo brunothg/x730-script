@@ -32,8 +32,12 @@ class CLI:
         self._parser.print_help()
 
     def shutdown(self, reboot: bool = False) -> None:
-        # TODO shutdown
-        pass
+        if reboot:
+            # TODO reboot
+            pass
+        else:
+            # TODO shutdown
+            pass
 
     def daemon(self) -> None:
         # TODO daemon
