@@ -29,9 +29,18 @@ class CLI:
         daemon_parser.set_defaults(command=self.daemon)
 
     def help(self) -> None:
+        """
+        Print the help message
+        :return:
+        """
         self._parser.print_help()
 
     def shutdown(self, reboot: bool = False) -> None:
+        """
+        Instruct the X730 expansion board to shut down
+        :param reboot: If true, reboot the system, else shutdown the system
+        :return:
+        """
         if reboot:
             # TODO reboot
             pass
@@ -40,10 +49,19 @@ class CLI:
             pass
 
     def daemon(self) -> None:
+        """
+        Start the X730 expansion board daemon
+        :return:
+        """
         # TODO daemon
         pass
 
     def verbose(self, level: int) -> None:
+        """
+        Set the verbosity level
+        :param level: An integer between 0 (Critical) and 4 (Debug)
+        :return:
+        """
         logging.basicConfig(
             level=[
                 logging.CRITICAL,
@@ -55,6 +73,11 @@ class CLI:
         )
 
     def run(self, args: list[str]) -> None:
+        """
+        Run the CLI with given arguments
+        :param args: The command line arguments
+        :return:
+        """
         parsed_args = self._parser.parse_args(args)
         self.verbose(parsed_args.verbose)
         CLI._LOG.debug(f"parsed_args = {parsed_args}")
