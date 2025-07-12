@@ -56,17 +56,30 @@ class X730:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def _sys_poweroff(self):
+    def _sys_poweroff(self) -> None:
+        """
+        Power off the OS.
+        :return:
+        """
         X730._LOG.info("System power off")
         subprocess.run('poweroff', check=True)
         self.close()
 
-    def _sys_reboot(self):
+    def _sys_reboot(self) -> None:
+        """
+        Reboot the OS.
+        :return:
+        """
         X730._LOG.info("System reboot")
         subprocess.run('reboot', check=True)
         self.close()
 
     def _on_shutdown_status(self, status: bool) -> None:
+        """
+        Handle shutdown status changes.
+        :param status: New shutdown status (True=High, False=Low)
+        :return:
+        """
         new_shutdown_status = (status, time.monotonic())
         old_shutdown_status = self._shutdown_status
         self._shutdown_status = new_shutdown_status
@@ -95,6 +108,10 @@ class X730:
             self._sys_poweroff()
 
     def open(self):
+        """
+        Open the X730 device.
+        :return:
+        """
         if self._opened:
             return
         self._opened = True
@@ -107,6 +124,10 @@ class X730:
         self._shutdown_status_pin.when_deactivated = lambda: self._on_shutdown_status(status=False)
 
     def close(self):
+        """
+        Close the X730 device.
+        :return:
+        """
         if not self._opened:
             return
         self._opened = False
