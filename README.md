@@ -6,6 +6,7 @@ Command line interface for controlling the [Geekworm X730 expansion board](https
 > 
 > This version targets Raspberry Pi OS versions supporting `gpiozero`  
 > For a bash and `pinctrl` implementation refer to version 2.x.
+> And a much simpler python implementation is used by version 3.x.
 
 
 ## Prerequisites

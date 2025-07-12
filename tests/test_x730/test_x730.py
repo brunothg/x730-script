@@ -1,4 +1,3 @@
-import time
 from typing import cast
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock
@@ -6,7 +5,7 @@ from unittest.mock import MagicMock, Mock
 from gpiozero.pins.mock import MockPin
 
 from x730 import X730
-from . import pin_factory
+from . import pin_factory, sleep_at_least
 
 
 class X730TestCase(TestCase):
@@ -20,7 +19,7 @@ class X730TestCase(TestCase):
 
         def mock_shutdown_status(pulse: float):
             x730._shutdown_status_pin.pin.drive_high()
-            time.sleep(pulse)
+            sleep_at_least(pulse)
             x730._shutdown_status_pin.pin.drive_low()
 
         def mock_poweroff(*args, **kwargs):

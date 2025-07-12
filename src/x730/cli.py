@@ -1,8 +1,10 @@
 import argparse
-import sys
 import inspect
 import logging
+import sys
 from typing import Callable
+
+from .daemon import Server as DaemonServer, Client as DaemonClient
 
 
 class CLI:
@@ -22,7 +24,8 @@ class CLI:
         shutdown_parser = subparsers.add_parser('shutdown', help="Shutdown the system")
         shutdown_parser.set_defaults(command=self.shutdown)
         shutdown_type_group = shutdown_parser.add_mutually_exclusive_group(required=True)
-        shutdown_type_group.add_argument('-p', '--poweroff', action='store_false', dest='reboot', help="Power off the system")
+        shutdown_type_group.add_argument('-p', '--poweroff', action='store_false', dest='reboot',
+                                         help="Power off the system")
         shutdown_type_group.add_argument('-r', '--reboot', action='store_true', dest='reboot', help="Reboot the system")
 
         daemon_parser = subparsers.add_parser('daemon', help="Start the X730 expansion board daemon")
@@ -41,20 +44,19 @@ class CLI:
         :param reboot: If true, reboot the system, else shutdown the system
         :return:
         """
-        if reboot:
-            # TODO reboot
-            pass
-        else:
-            # TODO shutdown
-            pass
+        with DaemonClient() as client:
+            if reboot:
+               client.reboot()
+            else:
+                client.poweroff()
 
     def daemon(self) -> None:
         """
         Start the X730 expansion board daemon
         :return:
         """
-        # TODO daemon
-        pass
+        with DaemonServer() as server:
+            server.serve_until()
 
     def verbose(self, level: int) -> None:
         """
