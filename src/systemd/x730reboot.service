@@ -7,7 +7,7 @@ Before=reboot.target
 [Service]
 Type=oneshot
 RemainAfterExit=no
-ExecStart=/usr/local/bin/x730 shutdown --restart
+ExecStart=/usr/local/bin/x730 shutdown --reboot
 
 [Install]
 WantedBy=reboot.target
