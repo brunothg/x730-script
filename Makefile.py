@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
 import dataclasses
-import sys
-from typing import Callable, Any
+import os
+import shutil
 import subprocess
+import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable, Any
 
 SELF = Path(__file__)
 SELF_DIR = SELF.parent
+
+SYSTEMD_DIR = Path("/etc/systemd/system")
+UV_TOOL_DIR = Path("/opt/uv/tools")
+UV_TOOL_BIN_DIR = Path("/usr/local/bin")
 
 
 ############
 # Makefile #
 ############
-@dataclasses.dataclass
+@dataclass
 class Target:
     name: str
     default: bool = False
@@ -95,6 +102,55 @@ def target_build():
             'uv', 'build'
         ],
         cwd=SELF_DIR,
+        check=True
+    )
+
+
+@Target(name="install")
+def target_install():
+    print("Run install.")
+    target_build()
+
+    subprocess.run(
+        args=[
+            'uv', 'tool', 'install', '.'
+        ],
+        cwd=SELF_DIR,
+        env={
+                'UV_TOOL_DIR': str(UV_TOOL_DIR),
+                'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
+            } | dict(os.environ),
+        check=True
+    )
+
+    for unit_file in (SELF_DIR / "src" / "systemd").glob("*.service"):
+        dst = SYSTEMD_DIR / unit_file.name
+        shutil.copy(unit_file, dst)
+        os.chmod(dst, 0o644)
+
+    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+        subprocess.run(args=['systemctl', 'enable', unit_file.name])
+
+
+@Target(name="uninstall")
+def target_uninstall():
+    print("Run uninstall.")
+
+    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+        subprocess.run(args=['systemctl', 'disable', '--now', unit_file.name])
+
+    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+        unit_file.unlink()
+
+    subprocess.run(
+        args=[
+            'uv', 'tool', 'uninstall', 'x730'
+        ],
+        cwd=SELF_DIR,
+        env={
+                'UV_TOOL_DIR': str(UV_TOOL_DIR),
+                'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
+            } | dict(os.environ),
         check=True
     )
 
