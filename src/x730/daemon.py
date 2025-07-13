@@ -1,153 +1,101 @@
-import dataclasses
 import functools
-import json
+import inspect
 import logging
 import os
-import socket
-import stat
+import signal
 import threading
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from os import PathLike
+import time
+from abc import ABC
+from collections import defaultdict
 from pathlib import Path
-from typing import TypeAlias, Optional, Any, Callable, Self
+from typing import Optional, Any, Callable, Self
 
 from .x730 import X730
 
-
-def _fq_name(obj: Any) -> str:
-    return f"{obj.__module__}.{obj.__qualname__}"
-
-
-def _sock_receive_all(sock, limit: Optional[int] = None) -> bytes:
-    buffer = bytearray()
-    while True:
-        if not (limit is None or len(buffer) < limit):
-            raise OverflowError("socket receive limit exceeded")
-        data = sock.recv(4096 if limit is None else limit - len(buffer))
-        if not data:  # Socket closed
-            break
-        buffer.extend(data)
-    return bytes(buffer)
+_LOG = logging.getLogger(__name__)
+_DEFAULT_PID_FILE: Path = Path("/var/run/x730/x730.pid")
 
 
-def _unix_sockets_supported() -> bool:
+def _create_pid_file(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as pid_file:
+        pid_file.write(str(os.getpid()))
+
+
+def _rm_pid_file(path: Path) -> None:
+    if path.exists():
+        path.unlink()
+
+
+def _read_pid_file(path: Path) -> int:
+    with open(path, "r") as pid_file:
+        return int(pid_file.read())
+
+
+def _signal_pid_file(path: Path, signum: int) -> None:
+    pid = _read_pid_file(path)
+    _LOG.debug(f"send signal {signum} to pid {pid}")
+    os.kill(pid, signum)
+
+
+def static_init(cls: type):
+    if hasattr(cls, "__static_init__"):
+        cls.__static_init__()
+    return cls
+
+
+class Signal:
     """
-    Test if unix sockets are supported.
-    :return: True if unix sockets are supported, else False.
+    Decorator for signals.
     """
-    try:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.close()
-        return True
-    except (OSError, AttributeError):
-        return False
 
-
-UX_ADDR: TypeAlias = str | Path | PathLike[str]
-IP_ADDR: TypeAlias = tuple[str, int]
-ADDR: TypeAlias = UX_ADDR | IP_ADDR
-
-
-def _is_ip_address(addr: ADDR) -> bool:
-    return isinstance(addr, tuple)
-
-
-def _is_ux_addr(addr: ADDR) -> bool:
-    return not _is_ip_address(addr)
-
-
-_DEFAULT_UX_ADDR: UX_ADDR = Path("/var/run/x730/x730.sock")
-_DEFAULT_IP_ADDR: IP_ADDR = ("localhost", 24730)
-_DEFAULT_ADDR: ADDR = _DEFAULT_UX_ADDR if _unix_sockets_supported() else _DEFAULT_IP_ADDR
-
-
-def _is_unix_socket_active(addr: UX_ADDR) -> bool:
-    addr_path = Path(addr)
-    if not addr_path.exists() or not stat.S_ISSOCK(os.stat(addr_path).st_mode):
-        return False
-    try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-            client.connect(addr)
-        return True
-    except Exception:
-        return False
-
-
-def _prepare_ux_addr(addr: UX_ADDR):
-    addr_path = Path(addr)
-    addr_dir = addr_path.parent
-    addr_dir.mkdir(parents=True, exist_ok=True)
-    if not _is_unix_socket_active(addr):
-        addr_path.unlink()
-
-
-def _clean_ux_addr(addr: UX_ADDR):
-    addr_path = Path(addr)
-    addr_path.unlink()
-
-
-def _create_socket(addr: ADDR) -> socket.socket:
-    _socket: socket.socket
-    if _is_ux_addr(addr):
-        _socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    else:
-        _socket = socket.socket(
-            socket.AF_INET6 if socket.has_dualstack_ipv6() else socket.AF_INET
-            , socket.SOCK_STREAM
-        )
-    return _socket
-
-
-_DEFAULT_RX_LIMIT: int = 10 * 1024 * 1024
-_DEFAULT_SOCKET_TIMEOUT: float = 5
-
-
-class API:
-    """
-    API collection
-    """
-    _apis: dict[str, Callable] = {}
+    _decorator_attr = f"_signal"
 
     @classmethod
-    def get(cls, api_id: str) -> Callable:
+    def get_signals(cls, clazz: type) -> list[Self]:
         """
-        Get api method by id
-        :param api_id: The api id
-        :return: The api method
+        Get all signals defined in a class
+        :param clazz: The class to get signals for
+        :return: The list of signals
         """
-        return cls._apis[api_id]
+        return [
+            sig for sig in (
+                Signal.get_signal(func) for name, func
+                in inspect.getmembers(clazz, inspect.isfunction)
+            ) if sig is not None
+        ]
 
     @classmethod
-    def api_id(cls, func: Callable) -> str:
+    def get_signal(cls, func: Callable) -> Optional[Self]:
         """
-        Get api id for method
-        :param func: The api method
-        :return: The api id
+        Get a signal from a function
+        :param func: The function to get a signal from
+        :return: The signal or None
         """
-        return _fq_name(func)
+        return getattr(func, cls._decorator_attr, None)
 
     @classmethod
-    def expose(cls, func: Optional[Callable] = None) -> Callable:
+    def set_signal(cls, func: Callable, value: Self):
         """
-        Decorator to register an API function.
-        :param func: The function to expose as an API.
-        :return: The API function.
+        Set a signal for a function
+        :param func: The function to set a signal for
+        :param value: The signal to set
+        :return:
         """
-        def decorator(_func: Callable) -> Callable:
-            api_id = API.api_id(func)
-            cls._apis[api_id] = _func
+        setattr(func, Signal._decorator_attr, value)
 
-            @functools.wraps(_func)
-            def wrapper(self: 'Daemon', *args: Any, **kwargs: Any) -> Any:
-                return self._api_call(api_id, *args, **kwargs)
+    def __init__(self, signum: int | list[int] | tuple[int]):
+        self.signums: tuple[int] = tuple([signum] if type(signum) is int else signum)
 
-            return wrapper
+    def __call__(self, func: Callable) -> Callable:
+        self.func = func
 
-        if callable(func):
-            return decorator(func)
-        else:
-            return decorator
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            raise NotImplementedError("You must implement this method")
+
+        Signal.set_signal(func, self)
+        return wrapper
 
 
 class Daemon(ABC):
@@ -156,19 +104,19 @@ class Daemon(ABC):
     """
     _LOG = logging.getLogger(__name__)
 
-    def __init__(self):
+    def __init__(
+            self,
+            pid_file: Optional[Path] = None,
+    ):
         self._x730 = X730()
+        self._pid_file = pid_file or _DEFAULT_PID_FILE
 
-    @abstractmethod
-    def _api_call(self, api_id: str, *args, **kwargs) -> Any:
-        """
-        Called when an API call is made.
-        :param api_id: The API ID.
-        :param args: The API args.
-        :param kwargs: The API kwargs.
-        :return: The API response.
-        """
-        raise NotImplementedError()
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any):
+        self.close()
 
     def open(self) -> None:
         """
@@ -184,47 +132,19 @@ class Daemon(ABC):
         """
         self._x730.close()
 
-    @API.expose
+    @Signal(signum=signal.SIGUSR1)
     def reboot(self) -> None:
         """
         See: `X730.reboot`
         """
         self._x730.reboot()
 
-    @API.expose
-    def poweroff(self, force: bool = False) -> None:
+    @Signal(signum=signal.SIGUSR2)
+    def poweroff(self) -> None:
         """
         See: `X730.poweroff`
         """
-        self._x730.poweroff(force=force)
-
-
-@dataclass
-class ApiRequest:
-    api_id: str
-    args: tuple[Any, ...]
-    kwargs: dict[str, Any]
-
-    def to_json(self) -> str:
-        return json.dumps(dataclasses.asdict(self))
-
-    @classmethod
-    def from_json(cls, json_value: str) -> Self:
-        return ApiRequest(**json.loads(json_value))
-
-
-@dataclass
-class ApiResponse:
-    api_id: str
-    response: Any
-    exception: bool
-
-    def to_json(self) -> str:
-        return json.dumps(dataclasses.asdict(self))
-
-    @classmethod
-    def from_json(cls, json_value: str) -> Self:
-        return ApiResponse(**json.loads(json_value))
+        self._x730.poweroff()
 
 
 class Server(Daemon):
@@ -233,121 +153,69 @@ class Server(Daemon):
     """
     _LOG = logging.getLogger(__name__)
 
-    def __init__(
-            self,
-            addr: Optional[ADDR] = None,
-            buffer_size: Optional[int] = None,
-            backlog_size: Optional[int] = None,
-            accept_timeout: Optional[float] = _DEFAULT_SOCKET_TIMEOUT,
-            client_timeout: Optional[float] = _DEFAULT_SOCKET_TIMEOUT,
-    ):
-        super().__init__()
-        self._addr = addr or _DEFAULT_ADDR
-        self._socket: Optional[socket.socket] = None
-        self._buffer_size = buffer_size or _DEFAULT_RX_LIMIT
-        self._backlog_size = backlog_size
-        self._accept_timeout = accept_timeout
-        self._client_timeout = client_timeout
+    def _handle_signal(self, signum: int, sigs: list[Signal]) -> None:
+        Server._LOG.debug(f"Handle signal {signum} for {sigs}")
+        for sig in sigs:
+            Server._LOG.debug(f"Invoke {sig.func} for {signum}@{sig}")
+            sig.func()
 
-    def __enter__(self):
-        self.open()
-        return self
+    def _register_signal_handlers(self) -> None:
+        sig_dict: dict[int, list[Signal]] = defaultdict(list)
+        [sig_dict[signum].append(sig) for sig in Signal.get_signals(self.__class__) for signum in sig.signums]
+        for signum, sigs in sig_dict.items():
+            signal.signal(signum, lambda _sig_nr, _frame: self._handle_signal(_sig_nr, sigs))
 
-    def __exit__(self, exc_type: Any, exc: Any, tb: Any):
-        self.close()
-
-    def _api_call(self, api_id: str, *args, **kwargs) -> Any:
-        Server._LOG.debug(f"Server API call {api_id}: args: {args}, kwargs: {kwargs}")
-        return API.get(api_id)(*args, **kwargs)
-
-    def _client_handler(self, client: socket.socket) -> None:
-        client.settimeout(self._client_timeout)
-        api_raw_request = _sock_receive_all(client, self._buffer_size).decode()
-        if not api_raw_request:
-            return
-
-        api_request = ApiRequest.from_json(api_raw_request)
-        api_response: ApiResponse
-        try:
-            response = self._api_call(api_request.api_id, *api_request.args, **api_request.kwargs)
-            api_response = ApiResponse(api_id=api_request.api_id, response=response, exception=False)
-        except Exception as e:
-            api_response = ApiResponse(api_id=api_request.api_id, response=str(e), exception=True)
-        client.sendall(api_response.to_json().encode())
-
-    def serve(self):
-        with self._socket.accept()[0] as client:
-            self._client_handler(client)
+    def _unregister_signal_handlers(self) -> None:
+        for signum in (
+                signum for signums in
+                (sig.signums for sig in Signal.get_signals(self.__class__))
+                for signum in signums
+        ):
+            signal.signal(signum, signal.SIG_DFL)
 
     def serve_until(self, stop_event: Optional[threading.Event] = None):
         if stop_event is not None:
             stop_event.clear()
 
         while not stop_event or not stop_event.is_set():
-            try:
-                self.serve()
-            except Exception as e:
-                Server._LOG.warning(f"Exception while serving: {e}")
+            time.sleep(60)
 
     def open(self) -> None:
         super().open()
-        if not self._socket:
-            if _is_ux_addr(self._addr):
-                _prepare_ux_addr(self._addr)
-            self._socket = _create_socket(self._addr)
-            self._socket.bind(self._addr)
-            self._socket.listen(self._backlog_size) if self._backlog_size else self._socket.listen()
-            self._socket.settimeout(self._accept_timeout)
+
+        _create_pid_file(self._pid_file)
+        self._register_signal_handlers()
 
     def close(self) -> None:
         try:
-            if self._socket:
-                self._socket.close()
-                if _is_ux_addr(self._addr):
-                    _clean_ux_addr(self._addr)
-
+            self._unregister_signal_handlers()
+            _rm_pid_file(self._pid_file)
         finally:
-            self._socket = None
             super().close()
 
 
+@static_init
 class Client(Daemon):
     """
     Daemon Client class.
     """
     _LOG = logging.getLogger(__name__)
 
-    def __init__(
-            self,
-            addr: Optional[ADDR] = None,
-            buffer_size: Optional[int] = None,
-            socket_timeout: Optional[float] = _DEFAULT_SOCKET_TIMEOUT,
-    ):
-        super().__init__()
-        self._addr = addr or _DEFAULT_ADDR
-        self._buffer_size = buffer_size or _DEFAULT_RX_LIMIT
-        self._socket_timeout = socket_timeout
+    @classmethod
+    def __static_init__(cls):
+        cls._patch_signals()
 
-    def __enter__(self):
-        self.open()
-        return self
+    @classmethod
+    def _patch_signals(cls):
+        for sig in Signal.get_signals(cls):
+            setattr(cls, sig.func.__name__, cls._make_patch(sig))
 
-    def __exit__(self, exc_type: Any, exc: Any, tb: Any):
-        self.close()
+    @classmethod
+    def _make_patch(cls, sig: Signal) -> Callable:
+        @functools.wraps(sig.func)
+        def wrapper(self: Self):
+            cls._LOG.info(f"Sending signal(s) {sig.signums} for {sig.func.__name__}")
+            for signum in sig.signums:
+                _signal_pid_file(self._pid_file, signum)
 
-    def _connect(self) -> socket.socket:
-        _socket = _create_socket(self._addr)
-        _socket.connect(self._addr)
-        _socket.settimeout(self._socket_timeout)
-        return _socket
-
-    def _api_call(self, api_id: str, *args, **kwargs) -> Any:
-        Client._LOG.debug(f"Client API call {api_id}: args: {args}, kwargs: {kwargs}")
-        with self._connect() as client:
-            api_request = ApiRequest(api_id=api_id, args=args, kwargs=kwargs)
-            client.sendall(api_request.to_json().encode())
-
-            api_response = ApiResponse.from_json(_sock_receive_all(client, self._buffer_size).decode())
-            if api_response.exception:
-                raise IOError(api_response.response)
-            return api_response.response
+        return wrapper
