@@ -87,9 +87,22 @@ def target_test():
     )
 
 
+@Target(name="build")
+def target_build():
+    print("Run build.")
+    subprocess.run(
+        args=[
+            'uv', 'build'
+        ],
+        cwd=SELF_DIR,
+        check=True
+    )
+
+
 @Target(name="all", default=True)
 def _all():
     target_test()
+    target_build()
     print("All done.")
 
 
