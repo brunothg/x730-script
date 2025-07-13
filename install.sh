@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SCRIPT_PATH="${BASH_SOURCE}"
 while [ -L "${SCRIPT_PATH}" ]; do
@@ -20,9 +20,10 @@ fi
 # Check prequisites
 echo "Checking prequisites ..."
 
-for bin in "systemctl" "pinctrl"
+echo "Test required binaries"
+for bin in "systemctl" "pinctrl" "bash"
 do
-  if ! type "$bin" &> /dev/null
+  if ! command -v "$bin" &> /dev/null
   then
     echo "$bin ...  missing"
     exit 1
@@ -30,6 +31,8 @@ do
     echo "$bin ... passed"
   fi
 done
+
+echo "Test "
 
 
 # Install shell scripts
