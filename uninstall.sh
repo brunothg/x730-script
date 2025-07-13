@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SCRIPT_PATH="${BASH_SOURCE}"
 while [ -L "${SCRIPT_PATH}" ]; do
