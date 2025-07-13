@@ -103,7 +103,7 @@ _DEFAULT_RX_LIMIT: int = 10 * 1024 * 1024
 _DEFAULT_SOCKET_TIMEOUT: float = 5
 
 
-class API(ABC):
+class API:
     """
     API collection
     """
@@ -111,7 +111,21 @@ class API(ABC):
 
     @classmethod
     def get(cls, api_id: str) -> Callable:
+        """
+        Get api method by id
+        :param api_id: The api id
+        :return: The api method
+        """
         return cls._apis[api_id]
+
+    @classmethod
+    def api_id(cls, func: Callable) -> str:
+        """
+        Get api id for method
+        :param func: The api method
+        :return: The api id
+        """
+        return _fq_name(func)
 
     @classmethod
     def expose(cls, func: Optional[Callable] = None) -> Callable:
@@ -120,9 +134,8 @@ class API(ABC):
         :param func: The function to expose as an API.
         :return: The API function.
         """
-
         def decorator(_func: Callable) -> Callable:
-            api_id = _fq_name(func)
+            api_id = API.api_id(func)
             cls._apis[api_id] = _func
 
             @functools.wraps(_func)
