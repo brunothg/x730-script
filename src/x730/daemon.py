@@ -3,6 +3,8 @@ import inspect
 import logging
 import os
 import signal
+import sys
+import tempfile
 import threading
 import time
 from abc import ABC
@@ -13,9 +15,19 @@ from typing import Optional, Any, Callable, Self
 from .x730 import X730
 
 _LOG = logging.getLogger(__name__)
-DEFAULT_PID_FILE: Path = Path("/var/run/x730/x730.pid")
+DEFAULT_PID_FILE: Path = (
+                                 [
+                                     p for p in
+                                     (Path(p) for p in [
+                                         "/run",
+                                         "/var/run",
+                                     ])
+                                     if p.exists() and p.is_dir() and os.access(p, os.W_OK | os.X_OK)
+                                 ]
+                                 or [Path(tempfile.gettempdir())]
+                         )[0] / f"{sys.argv[0]}.pid"
 
-
+# TODO improve pid file handling
 def _create_pid_file(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as pid_file:
@@ -39,6 +51,11 @@ def _signal_pid_file(path: Path, signum: int) -> None:
 
 
 def static_init(cls: type):
+    """
+    Class decorator that introduces a static class init function '@classmethod __static_init__'
+    :param cls: The class to decorate
+    :return: The decorated (original) class
+    """
     if hasattr(cls, "__static_init__"):
         cls.__static_init__()
     return cls
@@ -49,7 +66,7 @@ class Signal:
     Decorator for signals.
     """
 
-    _decorator_attr = f"_signal"
+    _decorator_attr = f"_{__name__}_signal"
 
     @classmethod
     def get_signals(cls, clazz: type) -> list[Self]:
