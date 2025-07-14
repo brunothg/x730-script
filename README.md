@@ -27,9 +27,9 @@ For example, you could run `python3 Makefile.py test` or `python3 Makefile.py bu
 
 The default installation process is as easy as calling `python3 Makefile.py install`.
 This will use `uv tool install` internally.
-By default, the installation directory will be `/opt/uv/tools/...` (or `UV_TOOL_DIR` env) for python files.
-Binary links are written to `/usr/locla/bin` (or `UV_TOOL_BIN_DIR` env).
-SystemD Unit files will be installed into `/etc/systemd/system/`.
+By default, the installation directory will be `/opt/uv/tools/...` for python files.
+Binary links are written to `/usr/local/bin/...`.
+SystemD Unit files will be installed into `/etc/systemd/system/...`.
 So you'll need sudo rights for those default installation paths.
 
 > [!IMPORTANT]
