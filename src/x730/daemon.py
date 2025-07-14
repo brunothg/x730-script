@@ -13,7 +13,7 @@ from typing import Optional, Any, Callable, Self
 from .x730 import X730
 
 _LOG = logging.getLogger(__name__)
-_DEFAULT_PID_FILE: Path = Path("/var/run/x730/x730.pid")
+DEFAULT_PID_FILE: Path = Path("/var/run/x730/x730.pid")
 
 
 def _create_pid_file(path: Path) -> None:
@@ -109,7 +109,7 @@ class Daemon(ABC):
             pid_file: Optional[Path] = None,
     ):
         self._x730 = X730()
-        self._pid_file = pid_file or _DEFAULT_PID_FILE
+        self._pid_file = pid_file or DEFAULT_PID_FILE
 
     def __enter__(self):
         self.open()

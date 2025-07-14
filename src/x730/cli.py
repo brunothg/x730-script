@@ -2,9 +2,10 @@ import argparse
 import inspect
 import logging
 import sys
+from pathlib import Path
 from typing import Callable
 
-from .daemon import Server as DaemonServer, Client as DaemonClient
+from .daemon import Server as DaemonServer, Client as DaemonClient, DEFAULT_PID_FILE as DAEMON_DEFAULT_PID_FILE
 
 
 class CLI:
@@ -19,13 +20,13 @@ class CLI:
             epilog="Command line interface for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi."
         )
         self._parser.add_argument('-v', '--verbose', action='count', default=0, help="Increase verbosity")
+        self._parser.add_argument('-p', '--pid-file', type=Path, default=DAEMON_DEFAULT_PID_FILE, dest='pid_file', help=f"PID file to use")
         subparsers = self._parser.add_subparsers(title="command", dest='command_name', required=False)
 
         shutdown_parser = subparsers.add_parser('shutdown', help="Shutdown the system")
         shutdown_parser.set_defaults(command=self.shutdown)
         shutdown_type_group = shutdown_parser.add_mutually_exclusive_group(required=True)
-        shutdown_type_group.add_argument('-p', '--poweroff', action='store_false', dest='reboot',
-                                         help="Power off the system")
+        shutdown_type_group.add_argument('-p', '--poweroff', action='store_false', dest='reboot', help="Power off the system")
         shutdown_type_group.add_argument('-r', '--reboot', action='store_true', dest='reboot', help="Reboot the system")
 
         daemon_parser = subparsers.add_parser('daemon', help="Start the X730 expansion board daemon")
@@ -38,24 +39,26 @@ class CLI:
         """
         self._parser.print_help()
 
-    def shutdown(self, reboot: bool = False) -> None:
+    def shutdown(self, reboot: bool = False, pid_file: Path = Path(DAEMON_DEFAULT_PID_FILE)) -> None:
         """
         Instruct the X730 expansion board to shut down
         :param reboot: If true, reboot the system, else shutdown the system
+        :param pid_file: PID file to use
         :return:
         """
-        with DaemonClient() as client:
+        with DaemonClient(pid_file=pid_file) as client:
             if reboot:
                client.reboot()
             else:
                 client.poweroff()
 
-    def daemon(self) -> None:
+    def daemon(self, pid_file: Path = Path(DAEMON_DEFAULT_PID_FILE)) -> None:
         """
         Start the X730 expansion board daemon
+        :param pid_file: PID file to use
         :return:
         """
-        with DaemonServer() as server:
+        with DaemonServer(pid_file=pid_file) as server:
             server.serve_until()
 
     def verbose(self, level: int) -> None:
