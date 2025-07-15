@@ -14,8 +14,7 @@ exSleep() {
 # 1-2 sec for reboot, 3-7 for poweroff (default) 8+ crash (pull the plug)
 SLEEP=${1:-4}
 
-re='^[0-9\.]+$'
-if ! [[ $SLEEP =~ $re ]] ; then
+if ! [[ "$SLEEP" =~ ^[0-9\.]+$ ]] ; then
    echo "error: sleep time not a number" >&2; exit 1
 fi
 

@@ -10,10 +10,14 @@ BOOT=17
 pinctrl set "$BOOT" op pn dl
 pinctrl set "$BOOT" dh
 
+python() {
+  "$(command -v python3 || command -v python || command -v python2)" "$@"
+}
+
 exSleep() {
   sleep "$1" \
 	|| perl -e "select(undef, undef, undef, $1)" \
-	|| "$(command -v python3 || command -v python || command -v python2)" -c "import time; time.sleep($1)"
+	|| python -c "import time; time.sleep($1)"
 }
 
 getShutdownSignal() {
@@ -26,7 +30,8 @@ getPulseTimestamp() {
     local us="${EPOCHREALTIME/[^0-9]/}"
     echo "${us:0:-3}"
   else
-	  date +%s%3N
+    python -c "import time; print(int(time.time() * 1000))" \
+	  || date +%s%3N
 	fi
 }
 
