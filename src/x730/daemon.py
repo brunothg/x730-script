@@ -15,17 +15,22 @@ from typing import Optional, Any, Callable, Self
 from .x730 import X730
 
 _LOG = logging.getLogger(__name__)
-DEFAULT_PID_FILE: Path = (
-                                 [
-                                     p for p in
-                                     (Path(p) for p in [
-                                         "/run",
-                                         "/var/run",
-                                     ])
-                                     if p.exists() and p.is_dir() and os.access(p, os.W_OK | os.X_OK)
-                                 ]
-                                 or [Path(tempfile.gettempdir())]
-                         )[0] / f"{sys.argv[0]}.pid"
+DEFAULT_PID_FILE: Path = Path((
+                                      [
+                                          p for p in
+                                          (Path(p).resolve() for p in [
+                                              "/run",
+                                              "/var/run",
+                                              f"/run/user/{os.geteuid()}",
+                                              f"/var/run/user/{os.geteuid()}",
+                                          ])
+                                          if (p.exists()
+                                              and p.is_dir()
+                                              and os.access(p, os.W_OK | os.X_OK, effective_ids=True))
+                                      ]
+                                      or [tempfile.gettempdir()]
+                              )[0]) / f"{(sys.argv[0] if len(sys.argv) > 0 else None) or X730.__name__}.pid"
+
 
 # TODO improve pid file handling
 def _create_pid_file(path: Path) -> None:
