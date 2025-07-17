@@ -76,6 +76,7 @@ class CLI:
                 logging.DEBUG,
             ][max(0, min(level, 4))]
         )
+        CLI._LOG.debug(f"Verbose level: {level}")
 
     def run(self, args: list[str]) -> None:
         """

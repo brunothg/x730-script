@@ -9,6 +9,7 @@ import threading
 import time
 from abc import ABC
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Optional, Any, Callable, Self
 
@@ -106,8 +107,8 @@ class Signal:
         """
         setattr(func, Signal._decorator_attr, value)
 
-    def __init__(self, signum: int | list[int] | tuple[int]):
-        self.signums: tuple[int] = tuple([signum] if type(signum) is int else signum)
+    def __init__(self, signum: int | Iterable[int]):
+        self.signums: tuple[int] = tuple(signum if isinstance(signum, Iterable) else [signum])
 
     def __call__(self, func: Callable) -> Callable:
         self.func = func
