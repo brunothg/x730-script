@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+from string import Template
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Any
@@ -122,10 +123,21 @@ def target_install():
             } | dict(os.environ),
         check=True
     )
+    x730 = shutil.which('x730')
+    if x730 is None:
+        raise RuntimeError(' '.join([
+            "x730 could not be found."
+            "You may need to install it to another path or update your PATH environment variable."
+        ]))
 
     for unit_file in (SELF_DIR / "src" / "systemd").glob("*.service"):
+        with open(unit_file, 'r', encoding='utf-8') as fd_unit_file:
+            template_unit_file = Template(fd_unit_file.read())
         dst = SYSTEMD_DIR / unit_file.name
-        shutil.copy(unit_file, dst)
+        with open(dst, 'w') as fd_dst:
+            fd_dst.write(template_unit_file.substitute({
+                'x730': x730,
+            }))
         os.chmod(dst, 0o644)
 
     for unit_file in SYSTEMD_DIR.glob("x730*.service"):
