@@ -50,6 +50,13 @@ So you'll need sudo rights for those default installation paths.
 > [uv](https://docs.astral.sh/uv/) or [uv tool docs](https://docs.astral.sh/uv/reference/cli/#uv-tool)
 
 
+As an alternative you could consider an installation using `pipx`.
+Install `pipx` directly or use `uvx pipx`.
+You'll need `pipx` in version 1.5.0+.
+First build a wheel (`python3 Makefile.py build`), then install it with `sudo pipx --global install dist/x730*.whl`.
+For more details visit [pipx docs](https://pipx.pypa.io/latest/docs/).
+
+
 ## Update
 
 Direct updates may work, but are not supported.
