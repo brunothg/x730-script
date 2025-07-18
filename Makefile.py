@@ -16,6 +16,10 @@ X730 = "x730"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 UV_TOOL_DIR = Path("/opt/uv/tools")
 UV_TOOL_BIN_DIR = Path("/usr/local/bin")
+UV_ENV = {
+             'UV_TOOL_DIR': str(UV_TOOL_DIR),
+             'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
+         } | dict(os.environ.items())
 
 
 ############
@@ -118,10 +122,7 @@ def target_install():
             'uv', 'tool', 'install', '.'
         ],
         cwd=SELF_DIR,
-        env={
-                'UV_TOOL_DIR': str(UV_TOOL_DIR),
-                'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
-            } | dict(os.environ),
+        env=UV_ENV,
         check=True
     )
     x730_bin_path = shutil.which(X730)
@@ -130,6 +131,7 @@ def target_install():
             f"{X730} could not be found."
             "You may need to install it to another path or update your PATH environment variable."
         ]))
+    print(f"{X730} successfully installed: {x730_bin_path}")
 
     for unit_file in (SELF_DIR / "src" / "systemd").glob("*.service"):
         with open(unit_file, 'r', encoding='utf-8') as fd_unit_file:
@@ -160,10 +162,7 @@ def target_uninstall():
             'uv', 'tool', 'uninstall', X730
         ],
         cwd=SELF_DIR,
-        env={
-                'UV_TOOL_DIR': str(UV_TOOL_DIR),
-                'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
-            } | dict(os.environ),
+        env=UV_ENV,
         check=True
     )
 

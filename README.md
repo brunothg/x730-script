@@ -38,6 +38,11 @@ So you'll need sudo rights for those default installation paths.
 > To work around this issue you can explicitly install uv for root.
 > Or alternatively use your users `PATH` env (e.g. `sudo env PATH="$PATH" python3 Makefile.py install`).
 
+> [!IMPORTANT]
+> 
+> Do not activate the projects virtual environment.
+> This will likely force uv to install into the venv instead of the desired location.
+> Even `UV_*` environment variables may/will be ignored.
 
 > [!TIP]
 > 
