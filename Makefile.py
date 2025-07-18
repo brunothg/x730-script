@@ -14,14 +14,15 @@ SELF_DIR = SELF.parent
 
 X730 = "x730"
 SYSTEMD_DIR = Path("/etc/systemd/system")
+UV_CACHE_DIR = Path("/opt/uv/cache")
 UV_TOOL_DIR = Path("/opt/uv/tools")
 UV_TOOL_BIN_DIR = Path("/usr/local/bin")
 UV_PYTHON_INSTALL_DIR = Path("/opt/uv/python")
 UV_ENV = {
+             'UV_CACHE_DIR': str(UV_CACHE_DIR),
              'UV_TOOL_DIR': str(UV_TOOL_DIR),
              'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
              'UV_PYTHON_INSTALL_DIR': str(UV_PYTHON_INSTALL_DIR),
-             'UV_LINK_MODE': 'copy'
          } | dict(os.environ.items())
 
 
