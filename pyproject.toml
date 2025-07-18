@@ -20,7 +20,6 @@ dependencies = [
     "gpiozero~=2.0.0",
 ]
 
-
 [project.urls]
 Homepage = "https://github.com/brunothg/x730-script"
 Documentation = "https://github.com/brunothg/x730-script"
