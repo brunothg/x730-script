@@ -115,9 +115,9 @@ class Signal:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            raise NotImplementedError("You must implement this method")
+            raise NotImplementedError(f"You must implement this method: {func}")
 
-        Signal.set_signal(func, self)
+        Signal.set_signal(wrapper, self)
         return wrapper
 
 
@@ -180,7 +180,7 @@ class Server(Daemon):
         Server._LOG.debug(f"Handle signal {signum} for {sigs}")
         for sig in sigs:
             Server._LOG.debug(f"Invoke {sig.func} for {signum}@{sig}")
-            sig.func()
+            sig.func(self)
 
     def _register_signal_handlers(self) -> None:
         sig_dict: dict[int, list[Signal]] = defaultdict(list)
