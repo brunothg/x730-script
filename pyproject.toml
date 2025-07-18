@@ -30,5 +30,5 @@ Issues = "https://github.com/brunothg/x730-script/issues"
 x730 = "x730:main"
 
 [build-system]
-requires = ["hatchling>=1.27"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.8.0,<0.9"]
+build-backend = "uv_build"

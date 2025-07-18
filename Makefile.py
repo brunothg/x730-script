@@ -12,6 +12,7 @@ from typing import Callable, Any
 SELF = Path(__file__)
 SELF_DIR = SELF.parent
 
+X730 = "x730"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 UV_TOOL_DIR = Path("/opt/uv/tools")
 UV_TOOL_BIN_DIR = Path("/usr/local/bin")
@@ -123,10 +124,10 @@ def target_install():
             } | dict(os.environ),
         check=True
     )
-    x730 = shutil.which('x730')
-    if x730 is None:
+    x730_bin_path = shutil.which(X730)
+    if x730_bin_path is None:
         raise RuntimeError(' '.join([
-            "x730 could not be found."
+            f"{X730} could not be found."
             "You may need to install it to another path or update your PATH environment variable."
         ]))
 
@@ -136,11 +137,11 @@ def target_install():
         dst = SYSTEMD_DIR / unit_file.name
         with open(dst, 'w') as fd_dst:
             fd_dst.write(template_unit_file.substitute({
-                'x730': x730,
+                X730: x730_bin_path,
             }))
         os.chmod(dst, 0o644)
 
-    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f"{X730}*.service"):
         subprocess.run(args=['systemctl', 'enable', unit_file.name])
 
 
@@ -148,15 +149,15 @@ def target_install():
 def target_uninstall():
     print("Run uninstall.")
 
-    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f"{X730}*.service"):
         subprocess.run(args=['systemctl', 'disable', '--now', unit_file.name])
 
-    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f"{X730}*.service"):
         unit_file.unlink()
 
     subprocess.run(
         args=[
-            'uv', 'tool', 'uninstall', 'x730'
+            'uv', 'tool', 'uninstall', X730
         ],
         cwd=SELF_DIR,
         env={
