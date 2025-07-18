@@ -1,6 +1,6 @@
 # x730
 
-Command line interface for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi.
+Command line interface and driver for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi.
 
 > [!NOTE]
 > 
@@ -43,6 +43,13 @@ So you'll need sudo rights for those default installation paths.
 > 
 > For more information about `uv` and the way you can interfere with the installation process visit their website:
 > [uv](https://docs.astral.sh/uv/) or [uv tool docs](https://docs.astral.sh/uv/reference/cli/#uv-tool)
+
+
+## Update
+
+Direct updates may work, but are not supported.
+Instead, you should uninstall the current version.
+Afterward you can download and install the new version.
 
 
 ## Usage
