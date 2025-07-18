@@ -114,12 +114,12 @@ def target_build():
 
 @Target(name="install")
 def target_install():
-    print("Run install.")
+    print("Run (re-)install.")
     target_build()
 
     subprocess.run(
         args=[
-            'uv', 'tool', 'install', '.'
+            'uv', 'tool', 'install', '--reinstall', '.'
         ],
         cwd=SELF_DIR,
         env=UV_ENV,
@@ -131,9 +131,11 @@ def target_install():
             f"{X730} could not be found."
             "You may need to install it to another path or update your PATH environment variable."
         ]))
+    else:
+        x730_bin_path = Path(x730_bin_path)
     print(f"{X730} successfully installed: {x730_bin_path}")
 
-    for unit_file in (SELF_DIR / "src" / "systemd").glob("*.service"):
+    for unit_file in (SELF_DIR / "src" / "systemd").glob('*.service'):
         with open(unit_file, 'r', encoding='utf-8') as fd_unit_file:
             template_unit_file = Template(fd_unit_file.read())
         dst = SYSTEMD_DIR / unit_file.name
@@ -142,8 +144,9 @@ def target_install():
                 X730: x730_bin_path,
             }))
         os.chmod(dst, 0o644)
+    print(f"SystemD unit files installed: {list(SYSTEMD_DIR.glob(f'{X730}*.service'))}")
 
-    for unit_file in SYSTEMD_DIR.glob(f"{X730}*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f'{X730}*.service'):
         subprocess.run(args=['systemctl', 'enable', unit_file.name])
 
 
@@ -151,10 +154,10 @@ def target_install():
 def target_uninstall():
     print("Run uninstall.")
 
-    for unit_file in SYSTEMD_DIR.glob(f"{X730}*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f'{X730}*.service'):
         subprocess.run(args=['systemctl', 'disable', '--now', unit_file.name])
 
-    for unit_file in SYSTEMD_DIR.glob(f"{X730}*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f'{X730}*.service'):
         unit_file.unlink()
 
     subprocess.run(
