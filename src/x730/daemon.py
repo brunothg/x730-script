@@ -30,7 +30,7 @@ DEFAULT_PID_FILE: Path = Path((
                                               and os.access(p, os.W_OK | os.X_OK, effective_ids=True))
                                       ]
                                       or [tempfile.gettempdir()]
-                              )[0]) / f"{(sys.argv[0] if len(sys.argv) > 0 else None) or X730.__name__}.pid"
+                              )[0]) / f"{(Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__}.pid"
 
 
 # TODO improve pid file handling
