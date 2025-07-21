@@ -6,6 +6,7 @@ import signal
 import sys
 import tempfile
 import threading
+import fcntl
 import time
 from abc import ABC
 from collections import defaultdict
@@ -81,7 +82,7 @@ class Signal:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            raise NotImplementedError(f"You must implement this method: {func}")
+            raise NotImplementedError(f"You must implement this method: {func}({args}, {kwargs})")
 
         Signal.set_signal(wrapper, self)
         return wrapper
@@ -174,15 +175,31 @@ class Server(Daemon):
             signal.signal(signum, signal.SIG_DFL)
 
     def _create_pid_file(self) -> None:
-        # TODO improve pid file handling
         path = self._pid_file
+        Server._LOG.debug(f"Create pid file {path}")
+
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as pid_file:
-            pid_file.write(str(os.getpid()))
+        pid_fd = open(path, "w")
+        try:
+            Server._LOG.debug(f"Lock pid file {path}")
+            fcntl.flock(pid_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            pid_fd.write(str(os.getpid()))
+        except (OSError, IOError) as e:
+            pid_fd.close()
+            Server._LOG.debug(f"Locking pid file {path} failed: {e}")
+            raise e
+        self._pid_fd = pid_fd
 
     def _rm_pid_file(self) -> None:
         path = self._pid_file
-        if path.exists():
+        pid_fd = self._pid_fd
+        try:
+            if pid_fd is not None:
+                Server._LOG.debug(f"Release lock for pid file {path}")
+                fcntl.flock(pid_fd, fcntl.LOCK_UN)
+        finally:
+            if pid_fd is not None:
+                pid_fd.close()
             path.unlink()
 
     def serve_until(self, stop_event: Optional[threading.Event] = None):
@@ -249,9 +266,16 @@ class Client(Daemon):
         Read the pid file.
         :return: The pid number
         """
-        # TODO Test lock
-        with open(self._pid_file, "r") as pid_file:
-            return int(pid_file.read())
+        with open(self._pid_file, "r+") as pid_fd:
+            try:
+                Client._LOG.debug("Test pid file is locked by daemon.")
+                fcntl.flock(pid_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(pid_fd, fcntl.LOCK_UN)
+            except OSError as e:
+                Client._LOG.debug(f"Pid file is locked by daemon: {e}")
+                return int(pid_fd.read())
+            Client._LOG.debug("Failed to read pid file. Not locked by daemon. Assuming not running.")
+            raise RuntimeError("Failed to read pid file. Daemon not running.")
 
     def _signal_pid_file(self, signum: int) -> None:
         """
