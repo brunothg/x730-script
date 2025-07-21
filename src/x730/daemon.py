@@ -33,29 +33,6 @@ DEFAULT_PID_FILE: Path = Path((
                               )[0]) / f"{(Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__}.pid"
 
 
-# TODO improve pid file handling
-def _create_pid_file(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as pid_file:
-        pid_file.write(str(os.getpid()))
-
-
-def _rm_pid_file(path: Path) -> None:
-    if path.exists():
-        path.unlink()
-
-
-def _read_pid_file(path: Path) -> int:
-    with open(path, "r") as pid_file:
-        return int(pid_file.read())
-
-
-def _signal_pid_file(path: Path, signum: int) -> None:
-    pid = _read_pid_file(path)
-    _LOG.debug(f"send signal {signum} to pid {pid}")
-    os.kill(pid, signum)
-
-
 class Signal:
     """
     Decorator for signals.
@@ -196,6 +173,18 @@ class Server(Daemon):
         ):
             signal.signal(signum, signal.SIG_DFL)
 
+    def _create_pid_file(self) -> None:
+        # TODO improve pid file handling
+        path = self._pid_file
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as pid_file:
+            pid_file.write(str(os.getpid()))
+
+    def _rm_pid_file(self) -> None:
+        path = self._pid_file
+        if path.exists():
+            path.unlink()
+
     def serve_until(self, stop_event: Optional[threading.Event] = None):
         """
         Serve until stop_event is set or forever, if not stop_event is provided.
@@ -210,13 +199,13 @@ class Server(Daemon):
     def open(self) -> None:
         super().open()
 
-        _create_pid_file(self._pid_file)
+        self._create_pid_file()
         self._register_signal_handlers()
 
     def close(self) -> None:
         try:
             self._unregister_signal_handlers()
-            _rm_pid_file(self._pid_file)
+            self._rm_pid_file()
         finally:
             super().close()
 
@@ -246,12 +235,31 @@ class Client(Daemon):
         Instead of invoking the patched function a signal will be sent to the daemon.
         :param sig: The signal to patch for.
         """
+
         @functools.wraps(sig.func)
         def wrapper(self: Self):
             cls._LOG.info(f"Sending signal(s) {sig.signums} for {sig.func.__name__}")
             for signum in sig.signums:
-                _signal_pid_file(self._pid_file, signum)
+                self._signal_pid_file(signum)
 
         return wrapper
+
+    def _read_pid_file(self) -> int:
+        """
+        Read the pid file.
+        :return: The pid number
+        """
+        # TODO Test lock
+        with open(self._pid_file, "r") as pid_file:
+            return int(pid_file.read())
+
+    def _signal_pid_file(self, signum: int) -> None:
+        """
+        Send a signal to the daemon identified by pid file.
+        """
+        pid = self._read_pid_file()
+        Client._LOG.debug(f"send signal {signum} to pid {pid}")
+        os.kill(pid, signum)
+
 
 Client.static_init()
