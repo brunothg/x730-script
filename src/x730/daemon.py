@@ -184,6 +184,7 @@ class Server(Daemon):
             Server._LOG.debug(f"Lock pid file {path}")
             fcntl.flock(pid_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             pid_fd.write(str(os.getpid()))
+            pid_fd.flush()
         except (OSError, IOError) as e:
             pid_fd.close()
             Server._LOG.debug(f"Locking pid file {path} failed: {e}")
