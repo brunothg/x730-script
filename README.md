@@ -11,7 +11,7 @@ Command line interface and driver for controlling the [Geekworm X730 expansion b
 ## Prerequisites
 
 1. OS supporting `systemd` and [gpiozero](https://pypi.org/project/gpiozero/)
-2. `python3`
+2. `python3` (3.11+)
 3. `uv`
 
 
@@ -20,12 +20,12 @@ Command line interface and driver for controlling the [Geekworm X730 expansion b
 In order to run the program without installation and/or compiling uvx (e.g. `uvx --refresh . -vvvv --help`) can be used.
 
 For building, testing etc. you should use the `Makefile.py` file (a make like CLI).
-For example, you could run `python3 Makefile.py test` or `python3 Makefile.py build`.
+For example, you could run `uv run Makefile.py test` or `uv run Makefile.py build`.
 
 
 ## Installation
 
-The default installation process is as easy as calling `python3 Makefile.py install`.
+The default installation process is as easy as calling `uv run Makefile.py install`.
 This will use `uv tool install` internally.
 By default, the installation directory will be `/opt/uv/tools/...` for python files.
 Binary links are written to `/usr/local/bin/...`.
@@ -36,7 +36,7 @@ So you'll need sudo rights for those default installation paths.
 > 
 > Most uv installations are not available globally and because of this not accessible using sudo.
 > To work around this issue you can explicitly install uv for root.
-> Or alternatively use your users `PATH` env (e.g. `sudo env PATH="$PATH" python3 Makefile.py install`).
+> Or alternatively use your users `PATH` env (e.g. `sudo env PATH="$PATH" uv run Makefile.py install`).
 
 > [!IMPORTANT]
 > 
@@ -53,7 +53,7 @@ So you'll need sudo rights for those default installation paths.
 As an alternative you could consider an installation using `pipx`.
 Install `pipx` directly or use `uvx pipx`.
 You'll need `pipx` in version 1.5.0+.
-First build a wheel (`python3 Makefile.py build`), then install it with `sudo pipx --global install dist/x730*.whl`.
+First build a wheel (`uv run Makefile.py build`), then install it with `sudo pipx --global install dist/x730*.whl`.
 For more details visit [pipx docs](https://pipx.pypa.io/latest/docs/).
 
 

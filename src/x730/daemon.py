@@ -56,17 +56,6 @@ def _signal_pid_file(path: Path, signum: int) -> None:
     os.kill(pid, signum)
 
 
-def static_init(cls: type):
-    """
-    Class decorator that introduces a static class init function '@classmethod __static_init__'
-    :param cls: The class to decorate
-    :return: The decorated (original) class
-    """
-    if hasattr(cls, "__static_init__"):
-        cls.__static_init__()
-    return cls
-
-
 class Signal:
     """
     Decorator for signals.
@@ -177,18 +166,29 @@ class Server(Daemon):
     _LOG = logging.getLogger(__name__)
 
     def _handle_signal(self, signum: int, sigs: list[Signal]) -> None:
+        """
+        Handle incoming signals.
+        Invokes the decorated function associated with the given signal.
+        :param sigs: The signals to handle
+        """
         Server._LOG.debug(f"Handle signal {signum} for {sigs}")
         for sig in sigs:
             Server._LOG.debug(f"Invoke {sig.func} for {signum}@{sig}")
             sig.func(self)
 
     def _register_signal_handlers(self) -> None:
+        """
+        Register signal handlers for decorated functions.
+        """
         sig_dict: dict[int, list[Signal]] = defaultdict(list)
         [sig_dict[signum].append(sig) for sig in Signal.get_signals(self.__class__) for signum in sig.signums]
         for signum, sigs in sig_dict.items():
             signal.signal(signum, lambda _sig_nr, _frame: self._handle_signal(_sig_nr, sigs))
 
     def _unregister_signal_handlers(self) -> None:
+        """
+        Unregister signal handlers for decorated functions.
+        """
         for signum in (
                 signum for signums in
                 (sig.signums for sig in Signal.get_signals(self.__class__))
@@ -197,6 +197,10 @@ class Server(Daemon):
             signal.signal(signum, signal.SIG_DFL)
 
     def serve_until(self, stop_event: Optional[threading.Event] = None):
+        """
+        Serve until stop_event is set or forever, if not stop_event is provided.
+        :param stop_event: Event to stop serving
+        """
         if stop_event is not None:
             stop_event.clear()
 
@@ -217,7 +221,6 @@ class Server(Daemon):
             super().close()
 
 
-@static_init
 class Client(Daemon):
     """
     Daemon Client class.
@@ -225,16 +228,24 @@ class Client(Daemon):
     _LOG = logging.getLogger(__name__)
 
     @classmethod
-    def __static_init__(cls):
+    def static_init(cls):
         cls._patch_signals()
 
     @classmethod
     def _patch_signals(cls):
+        """
+        Patch all signal functions.
+        """
         for sig in Signal.get_signals(cls):
             setattr(cls, sig.func.__name__, cls._make_patch(sig))
 
     @classmethod
     def _make_patch(cls, sig: Signal) -> Callable:
+        """
+        Make a signal patch function.
+        Instead of invoking the patched function a signal will be sent to the daemon.
+        :param sig: The signal to patch for.
+        """
         @functools.wraps(sig.func)
         def wrapper(self: Self):
             cls._LOG.info(f"Sending signal(s) {sig.signums} for {sig.func.__name__}")
@@ -242,3 +253,5 @@ class Client(Daemon):
                 _signal_pid_file(self._pid_file, signum)
 
         return wrapper
+
+Client.static_init()
