@@ -11,8 +11,8 @@ Command line interface and driver for controlling the [Geekworm X730 expansion b
 ## Prerequisites
 
 1. OS supporting `systemd` and [gpiozero](https://pypi.org/project/gpiozero/)
-2. `python3` (3.11+)
-3. `uv`
+2. `uv`
+3. `python3` (3.11+ optional)
 
 
 ## Development
@@ -27,7 +27,8 @@ For example, you could run `uv run Makefile.py test` or `uv run Makefile.py buil
 
 The default installation process is as easy as calling `uv run Makefile.py install`.
 This will use `uv tool install` internally.
-By default, the installation directory will be `/opt/uv/tools/...` for python files.
+By default, the installation directory will be `/opt/uv/tools/...` for python files
+and `/opt/uv/python` for python itself (if required).
 Binary links are written to `/usr/local/bin/...`.
 SystemD Unit files will be installed into `/etc/systemd/system/...`.
 So you'll need sudo rights for those default installation paths.

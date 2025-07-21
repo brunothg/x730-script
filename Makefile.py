@@ -175,11 +175,11 @@ def target_uninstall():
     )
 
 
-@Target(name="all", default=True)
-def _all():
-    target_test()
-    target_build()
-    print("All done.")
+@Target(name="help", default=True)
+def _help():
+    print("Available targets:")
+    for name, target in targets.items():
+        print(f"\t - {name}")
 
 
 ########
