@@ -14,16 +14,18 @@ SELF_DIR = SELF.parent
 
 X730 = "x730"
 SYSTEMD_DIR = Path("/etc/systemd/system")
-UV_CACHE_DIR = Path("/opt/uv/cache")
-UV_TOOL_DIR = Path("/opt/uv/tools")
-UV_TOOL_BIN_DIR = Path("/usr/local/bin")
-UV_PYTHON_INSTALL_DIR = Path("/opt/uv/python")
+
 UV_ENV = {
-             'UV_CACHE_DIR': str(UV_CACHE_DIR),
-             'UV_TOOL_DIR': str(UV_TOOL_DIR),
-             'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
-             'UV_PYTHON_INSTALL_DIR': str(UV_PYTHON_INSTALL_DIR),
+             'UV_CACHE_DIR': "/opt/uv/cache",
+             'UV_TOOL_DIR': "/opt/uv/tools",
+             'UV_TOOL_BIN_DIR': "/usr/local/bin",
+             'UV_PYTHON_INSTALL_DIR': "/opt/uv/python",
          } | dict(os.environ.items())
+UV_CACHE_DIR = Path(UV_ENV['UV_CACHE_DIR'])
+UV_TOOL_DIR = Path(UV_ENV['UV_TOOL_DIR'])
+UV_TOOL_BIN_DIR = Path(UV_ENV['UV_TOOL_BIN_DIR'])
+UV_PYTHON_INSTALL_DIR = Path(UV_ENV['UV_PYTHON_INSTALL_DIR'])
+
 
 
 ############
@@ -119,7 +121,6 @@ def target_build():
 @Target(name="install")
 def target_install():
     print("Run (re-)install.")
-    target_build()
 
     subprocess.run(
         args=[
@@ -129,7 +130,7 @@ def target_install():
         env=UV_ENV,
         check=True
     )
-    x730_bin_path = shutil.which(X730)
+    x730_bin_path = shutil.which(X730, path=UV_TOOL_BIN_DIR)
     if x730_bin_path is None:
         raise RuntimeError(' '.join([
             f"{X730} could not be found."
