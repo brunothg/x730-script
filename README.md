@@ -64,6 +64,11 @@ Direct updates may work, but are not supported.
 Instead, you should uninstall the current version.
 Afterward you can download and install the new version.
 
+> [!NOTE]
+> 
+> You may use this shell command:  
+> `uv run Makefile.py uninstall && git pull && uv run Makefile.py install`
+
 
 ## Usage
 
