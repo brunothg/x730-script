@@ -37,16 +37,22 @@ class CLI:
     def help(self) -> None:
         """
         Print the help message
-        :return:
+
+        Returns:
+            None
         """
         self._parser.print_help()
 
     def shutdown(self, reboot: bool = False, pid_file: Path = Path(DAEMON_DEFAULT_PID_FILE)) -> None:
         """
         Instruct the X730 expansion board to shut down
-        :param reboot: If true, reboot the system, else shutdown the system
-        :param pid_file: PID file to use
-        :return:
+
+        Args:
+            reboot:  If true, reboot the system, else shutdown the system
+            pid_file: PID file to use
+
+        Returns:
+            None
         """
         with DaemonClient(pid_file=pid_file) as client:
             if reboot:
@@ -57,8 +63,12 @@ class CLI:
     def daemon(self, pid_file: Path = Path(DAEMON_DEFAULT_PID_FILE)) -> None:
         """
         Start the X730 expansion board daemon
-        :param pid_file: PID file to use
-        :return:
+
+        Args:
+            pid_file: PID file to use
+
+        Returns:
+            None
         """
         with DaemonServer(pid_file=pid_file) as server:
             server.serve_until()
@@ -66,8 +76,12 @@ class CLI:
     def verbose(self, level: int) -> None:
         """
         Set the verbosity level
-        :param level: An integer between 0 (Critical) and 4 (Debug)
-        :return:
+
+        Args:
+            level: An integer between 0 (Critical) and 4 (Debug)
+
+        Returns:
+            None
         """
         logging.basicConfig(
             level=[
@@ -83,8 +97,12 @@ class CLI:
     def run(self, args: list[str]) -> None:
         """
         Run the CLI with given arguments
-        :param args: The command line arguments
-        :return:
+
+        Args:
+            args: The command line arguments
+
+        Returns:
+            None
         """
         parsed_args = self._parser.parse_args(args)
         self.verbose(parsed_args.verbose)
@@ -101,7 +119,9 @@ class CLI:
 def main() -> None:
     """
     Run CLI with sys.argv command line arguments.
-    :return:
+
+    Returns:
+        None
     """
     CLI().run(sys.argv[1:])
 

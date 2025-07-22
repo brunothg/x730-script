@@ -20,7 +20,6 @@ class Pins(Enum):
 class X730:
     """
     Singleton class for controlling the X730 expansion board.
-
     Shutdown button sequence: 1-2 sec for reboot, 3-7 for poweroff (default) 8+ crash (pull the plug)
     """
     _LOG = logging.getLogger(__name__)
@@ -59,7 +58,9 @@ class X730:
     def _sys_poweroff(self) -> None:
         """
         Power off the OS.
-        :return:
+
+        Returns:
+            None
         """
         X730._LOG.info("System power off")
         subprocess.run('poweroff', check=True)
@@ -68,7 +69,9 @@ class X730:
     def _sys_reboot(self) -> None:
         """
         Reboot the OS.
-        :return:
+
+        Returns:
+            None
         """
         X730._LOG.info("System reboot")
         subprocess.run('reboot', check=True)
@@ -77,8 +80,12 @@ class X730:
     def _on_shutdown_status(self, status: bool) -> None:
         """
         Handle shutdown status changes.
-        :param status: New shutdown status (True=High, False=Low)
-        :return:
+
+        Args:
+            status: New shutdown status (True=High, False=Low)
+
+        Returns:
+            None
         """
         new_shutdown_status = (status, time.monotonic())
         old_shutdown_status = self._shutdown_status
@@ -107,10 +114,12 @@ class X730:
         else:
             self._sys_poweroff()
 
-    def open(self):
+    def open(self) -> None:
         """
         Open the X730 device.
-        :return:
+
+        Returns:
+            None
         """
         if self._opened:
             return
@@ -123,10 +132,12 @@ class X730:
         self._shutdown_status_pin.when_activated = lambda: self._on_shutdown_status(status=True)
         self._shutdown_status_pin.when_deactivated = lambda: self._on_shutdown_status(status=False)
 
-    def close(self):
+    def close(self) -> None:
         """
         Close the X730 device.
-        :return:
+
+        Returns:
+            None
         """
         if not self._opened:
             return
@@ -145,8 +156,11 @@ class X730:
         """
         Powers the board off.
 
-        :param force: If True, force the power off (cut off the power).
-        :return:
+        Args:
+            force: If True, force the power off (cut off the power).
+
+        Returns:
+            None
         """
         X730._LOG.info("Powering off board")
         self._shutdown_button_pin.on()
@@ -157,7 +171,8 @@ class X730:
         """
         Restarts the board.
 
-        :return:
+        Returns:
+            None
         """
         X730._LOG.info("Restarting the board")
         self._shutdown_button_pin.on()

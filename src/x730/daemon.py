@@ -45,8 +45,12 @@ class Signal:
     def get_signals(cls, clazz: type) -> list[Self]:
         """
         Get all signals defined in a class
-        :param clazz: The class to get signals for
-        :return: The list of signals
+
+        Args:
+            clazz: The class to get signals for
+
+        Returns:
+            The list of signals
         """
         return [
             sig for sig in (
@@ -59,18 +63,26 @@ class Signal:
     def get_signal(cls, func: Callable) -> Optional[Self]:
         """
         Get a signal from a function
-        :param func: The function to get a signal from
-        :return: The signal or None
+
+        Args:
+            func: The function to get a signal from
+
+        Returns:
+            The signal or None
         """
         return getattr(func, cls._decorator_attr, None)
 
     @classmethod
-    def set_signal(cls, func: Callable, value: Self):
+    def set_signal(cls, func: Callable, value: Self) -> None:
         """
         Set a signal for a function
-        :param func: The function to set a signal for
-        :param value: The signal to set
-        :return:
+
+        Args:
+            func: The function to set a signal for
+            value: The signal to set
+
+        Returns:
+            None
         """
         setattr(func, Signal._decorator_attr, value)
 
@@ -111,28 +123,40 @@ class Daemon(ABC):
     def open(self) -> None:
         """
         Open the daemon.
-        :return:
+
+        Returns:
+            None
         """
         self._x730.open()
 
     def close(self) -> None:
         """
         Close the daemon.
-        :return:
+
+        Returns:
+            None
         """
         self._x730.close()
 
     @Signal(signum=signal.SIGUSR1)
     def reboot(self) -> None:
         """
-        See: `X730.reboot`
+        See:
+            `X730.reboot`
+
+        Returns:
+            None
         """
         self._x730.reboot()
 
     @Signal(signum=signal.SIGUSR2)
     def poweroff(self) -> None:
         """
-        See: `X730.poweroff`
+        See:
+            `X730.poweroff`
+
+        Returns:
+            None
         """
         self._x730.poweroff()
 
@@ -147,7 +171,12 @@ class Server(Daemon):
         """
         Handle incoming signals.
         Invokes the decorated function associated with the given signal.
-        :param sigs: The signals to handle
+
+        Args:
+            sigs: The signals to handle
+
+        Returns:
+            None
         """
         Server._LOG.debug(f"Handle signal {signum} for {sigs}")
         for sig in sigs:
@@ -157,6 +186,9 @@ class Server(Daemon):
     def _register_signal_handlers(self) -> None:
         """
         Register signal handlers for decorated functions.
+
+        Returns:
+            None
         """
         sig_dict: dict[int, list[Signal]] = defaultdict(list)
         [sig_dict[signum].append(sig) for sig in Signal.get_signals(self.__class__) for signum in sig.signums]
@@ -166,6 +198,9 @@ class Server(Daemon):
     def _unregister_signal_handlers(self) -> None:
         """
         Unregister signal handlers for decorated functions.
+
+        Returns:
+            None
         """
         for signum in (
                 signum for signums in
@@ -175,6 +210,16 @@ class Server(Daemon):
             signal.signal(signum, signal.SIG_DFL)
 
     def _create_pid_file(self) -> None:
+        """
+        Create and lock the pid file.
+
+        Returns:
+            None
+
+        Raises:
+            IOError: If pid file can not be created or written.
+            OSError: If pid file can not be locked.
+        """
         path = self._pid_file
         Server._LOG.debug(f"Create pid file {path}")
 
@@ -192,6 +237,12 @@ class Server(Daemon):
         self._pid_fd = pid_fd
 
     def _rm_pid_file(self) -> None:
+        """
+        Remove and unlock the pid file.
+
+        Returns:
+            None
+        """
         path = self._pid_file
         pid_fd = self._pid_fd
         try:
@@ -203,10 +254,15 @@ class Server(Daemon):
                 pid_fd.close()
             path.unlink()
 
-    def serve_until(self, stop_event: Optional[threading.Event] = None):
+    def serve_until(self, stop_event: Optional[threading.Event] = None) -> None:
         """
         Serve until stop_event is set or forever, if not stop_event is provided.
-        :param stop_event: Event to stop serving
+
+        Args:
+            stop_event: Event to stop serving
+
+        Returns:
+            None
         """
         if stop_event is not None:
             stop_event.clear()
@@ -239,9 +295,12 @@ class Client(Daemon):
         cls._patch_signals()
 
     @classmethod
-    def _patch_signals(cls):
+    def _patch_signals(cls) -> None:
         """
         Patch all signal functions.
+
+        Returns:
+            None
         """
         for sig in Signal.get_signals(cls):
             setattr(cls, sig.func.__name__, cls._make_patch(sig))
@@ -251,7 +310,12 @@ class Client(Daemon):
         """
         Make a signal patch function.
         Instead of invoking the patched function a signal will be sent to the daemon.
-        :param sig: The signal to patch for.
+
+        Args:
+            sig: The signal to patch for.
+
+        Returns:
+            The patched function.
         """
 
         @functools.wraps(sig.func)
@@ -265,7 +329,13 @@ class Client(Daemon):
     def _read_pid_file(self) -> int:
         """
         Read the pid file.
-        :return: The pid number
+
+        Returns:
+            The pid number
+
+        Raises:
+            IOError: If the pid file is not found.
+            RuntimeError: If the demon process is not running (unlocked pid file).
         """
         with open(self._pid_file, "r+") as pid_fd:
             try:
@@ -281,6 +351,9 @@ class Client(Daemon):
     def _signal_pid_file(self, signum: int) -> None:
         """
         Send a signal to the daemon identified by pid file.
+
+        Returns:
+            None
         """
         pid = self._read_pid_file()
         Client._LOG.debug(f"send signal {signum} to pid {pid}")
