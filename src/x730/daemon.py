@@ -94,7 +94,7 @@ class Signal:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            raise NotImplementedError(f"You must implement this method: {func}({args}, {kwargs})")
+            func(*args, **kwargs)
 
         Signal.set_signal(wrapper, self)
         return wrapper
@@ -110,7 +110,6 @@ class Daemon(ABC):
             self,
             pid_file: Optional[Path] = None,
     ):
-        self._x730 = X730()
         self._pid_file = pid_file or DEFAULT_PID_FILE
 
     def __enter__(self):
@@ -120,6 +119,20 @@ class Daemon(ABC):
     def __exit__(self, exc_type: Any, exc: Any, tb: Any):
         self.close()
 
+    def _reboot(self) -> None:
+        """
+        See Also:
+            reboot(): The corresponding API method
+        """
+        raise NotImplementedError()
+
+    def _poweroff(self) -> None:
+        """
+        See Also:
+            poweroff(): The corresponding API method
+        """
+        raise NotImplementedError()
+
     def open(self) -> None:
         """
         Open the daemon.
@@ -127,7 +140,7 @@ class Daemon(ABC):
         Returns:
             None
         """
-        self._x730.open()
+        pass
 
     def close(self) -> None:
         """
@@ -136,7 +149,7 @@ class Daemon(ABC):
         Returns:
             None
         """
-        self._x730.close()
+        pass
 
     @Signal(signum=signal.SIGUSR1)
     def reboot(self) -> None:
@@ -147,7 +160,7 @@ class Daemon(ABC):
         Returns:
             None
         """
-        self._x730.reboot()
+        self._reboot()
 
     @Signal(signum=signal.SIGUSR2)
     def poweroff(self) -> None:
@@ -158,7 +171,7 @@ class Daemon(ABC):
         Returns:
             None
         """
-        self._x730.poweroff()
+        self._poweroff()
 
 
 class Server(Daemon):
@@ -166,6 +179,14 @@ class Server(Daemon):
     Daemon Server class.
     """
     _LOG = logging.getLogger(__name__)
+
+    def __init__(
+            self,
+            pid_file: Optional[Path] = None,
+    ):
+        super().__init__(pid_file)
+
+        self._x730: X730 = X730()
 
     def _handle_signal(self, signum: int, sigs: list[Signal]) -> None:
         """
@@ -254,6 +275,12 @@ class Server(Daemon):
                 pid_fd.close()
             path.unlink()
 
+    def _reboot(self) -> None:
+        self._x730.reboot()
+
+    def _poweroff(self) -> None:
+        self._x730.poweroff()
+
     def serve_until(self, stop_event: Optional[threading.Event] = None) -> None:
         """
         Serve until stop_event is set or forever, if not stop_event is provided.
@@ -273,6 +300,7 @@ class Server(Daemon):
     def open(self) -> None:
         super().open()
 
+        self._x730.open()
         self._create_pid_file()
         self._register_signal_handlers()
 
@@ -280,6 +308,7 @@ class Server(Daemon):
         try:
             self._unregister_signal_handlers()
             self._rm_pid_file()
+            self._x730.close()
         finally:
             super().close()
 
