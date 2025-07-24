@@ -108,9 +108,9 @@ class Daemon(ABC):
 
     def __init__(
             self,
-            pid_file: Optional[Path] = None,
+            pid_file: Path = DEFAULT_PID_FILE,
     ):
-        self._pid_file = pid_file or DEFAULT_PID_FILE
+        self._pid_file = pid_file
 
     def __enter__(self):
         self.open()
