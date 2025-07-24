@@ -2,9 +2,11 @@ import argparse
 import inspect
 import logging
 import sys
+from pathlib import Path
 from typing import Callable
 
 from .daemon import Server as DaemonServer, Client as DaemonClient
+from .daemon import DEFAULT_PID_FILE as DAEMON_DEFAULT_PID_FILE, DEFAULT_SOCK_FILE as DAEMON_DEFAULT_SOCK_FILE
 
 
 class CLI:
@@ -19,6 +21,8 @@ class CLI:
             epilog="Command line interface for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi."
         )
         self._parser.add_argument('-v', '--verbose', action='count', default=0, help="Increase verbosity")
+        self._parser.add_argument('-p', '--pid-file', type=Path, default=DAEMON_DEFAULT_PID_FILE, dest='pid_file',
+                                  help=f"PID file to use")
         subparsers = self._parser.add_subparsers(title="command", dest='command_name', required=False)
 
         shutdown_parser = subparsers.add_parser('shutdown', help="Shutdown the system")
@@ -34,35 +38,62 @@ class CLI:
     def help(self) -> None:
         """
         Print the help message
-        :return:
+
+        Returns:
+            None
         """
         self._parser.print_help()
 
-    def shutdown(self, reboot: bool = False) -> None:
+    def shutdown(
+            self,
+            reboot: bool = False,
+            pid_file: Path = Path(DAEMON_DEFAULT_PID_FILE),
+            sock_file: Path = Path(DAEMON_DEFAULT_SOCK_FILE),
+    ) -> None:
         """
         Instruct the X730 expansion board to shut down
-        :param reboot: If true, reboot the system, else shutdown the system
-        :return:
+
+        Args:
+            reboot:  If true, reboot the system, else shutdown the system
+            pid_file: PID file to use
+            sock_file: Socket file to use
+
+        Returns:
+            None
         """
-        with DaemonClient() as client:
+        with DaemonClient(pid_file=pid_file, sock_file=sock_file) as client:
             if reboot:
-               client.reboot()
+                client.reboot()
             else:
                 client.poweroff()
 
-    def daemon(self) -> None:
+    def daemon(
+            self,
+            pid_file: Path = Path(DAEMON_DEFAULT_PID_FILE),
+            sock_file: Path = Path(DAEMON_DEFAULT_SOCK_FILE),
+    ) -> None:
         """
         Start the X730 expansion board daemon
-        :return:
+
+        Args:
+            pid_file: PID file to use
+            sock_file: Socket file to use
+
+        Returns:
+            None
         """
-        with DaemonServer() as server:
+        with DaemonServer(pid_file=pid_file, sock_file=sock_file) as server:
             server.serve_until()
 
     def verbose(self, level: int) -> None:
         """
         Set the verbosity level
-        :param level: An integer between 0 (Critical) and 4 (Debug)
-        :return:
+
+        Args:
+            level: An integer between 0 (Critical) and 4 (Debug)
+
+        Returns:
+            None
         """
         logging.basicConfig(
             level=[
@@ -73,12 +104,17 @@ class CLI:
                 logging.DEBUG,
             ][max(0, min(level, 4))]
         )
+        CLI._LOG.debug(f"Verbose level: {level}")
 
     def run(self, args: list[str]) -> None:
         """
         Run the CLI with given arguments
-        :param args: The command line arguments
-        :return:
+
+        Args:
+            args: The command line arguments
+
+        Returns:
+            None
         """
         parsed_args = self._parser.parse_args(args)
         self.verbose(parsed_args.verbose)
@@ -95,7 +131,9 @@ class CLI:
 def main() -> None:
     """
     Run CLI with sys.argv command line arguments.
-    :return:
+
+    Returns:
+        None
     """
     CLI().run(sys.argv[1:])
 

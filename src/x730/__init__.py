@@ -4,6 +4,9 @@ from .x730 import X730
 
 
 def main() -> None:
+    """
+    Run CLI entry point
+    """
     _cli_main()
 
 

@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+from string import Template
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Any
@@ -11,9 +12,20 @@ from typing import Callable, Any
 SELF = Path(__file__)
 SELF_DIR = SELF.parent
 
+X730 = "x730"
 SYSTEMD_DIR = Path("/etc/systemd/system")
-UV_TOOL_DIR = Path("/opt/uv/tools")
-UV_TOOL_BIN_DIR = Path("/usr/local/bin")
+
+UV_ENV = {
+             'UV_CACHE_DIR': "/opt/uv/cache",
+             'UV_TOOL_DIR': "/opt/uv/tools",
+             'UV_TOOL_BIN_DIR': "/usr/local/bin",
+             'UV_PYTHON_INSTALL_DIR': "/opt/uv/python",
+         } | dict(os.environ.items())
+UV_CACHE_DIR = Path(UV_ENV['UV_CACHE_DIR'])
+UV_TOOL_DIR = Path(UV_ENV['UV_TOOL_DIR'])
+UV_TOOL_BIN_DIR = Path(UV_ENV['UV_TOOL_BIN_DIR'])
+UV_PYTHON_INSTALL_DIR = Path(UV_ENV['UV_PYTHON_INSTALL_DIR'])
+
 
 
 ############
@@ -108,27 +120,38 @@ def target_build():
 
 @Target(name="install")
 def target_install():
-    print("Run install.")
-    target_build()
+    print("Run (re-)install.")
 
     subprocess.run(
         args=[
-            'uv', 'tool', 'install', '.'
+            'uv', 'tool', 'install', '--reinstall', '.'
         ],
         cwd=SELF_DIR,
-        env={
-                'UV_TOOL_DIR': str(UV_TOOL_DIR),
-                'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
-            } | dict(os.environ),
+        env=UV_ENV,
         check=True
     )
+    x730_bin_path = shutil.which(X730, path=UV_TOOL_BIN_DIR)
+    if x730_bin_path is None:
+        raise RuntimeError(' '.join([
+            f"{X730} could not be found."
+            "You may need to install it to another path or update your PATH environment variable."
+        ]))
+    else:
+        x730_bin_path = Path(x730_bin_path)
+    print(f"{X730} successfully installed: {x730_bin_path}")
 
-    for unit_file in (SELF_DIR / "src" / "systemd").glob("*.service"):
+    for unit_file in (SELF_DIR / "src" / "systemd").glob('*.service'):
+        with open(unit_file, 'r', encoding='utf-8') as fd_unit_file:
+            template_unit_file = Template(fd_unit_file.read())
         dst = SYSTEMD_DIR / unit_file.name
-        shutil.copy(unit_file, dst)
+        with open(dst, 'w') as fd_dst:
+            fd_dst.write(template_unit_file.substitute({
+                X730: x730_bin_path,
+            }))
         os.chmod(dst, 0o644)
+    print(f"SystemD unit files installed: {list(SYSTEMD_DIR.glob(f'{X730}*.service'))}")
 
-    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f'{X730}*.service'):
         subprocess.run(args=['systemctl', 'enable', unit_file.name])
 
 
@@ -136,30 +159,27 @@ def target_install():
 def target_uninstall():
     print("Run uninstall.")
 
-    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f'{X730}*.service'):
         subprocess.run(args=['systemctl', 'disable', '--now', unit_file.name])
 
-    for unit_file in SYSTEMD_DIR.glob("x730*.service"):
+    for unit_file in SYSTEMD_DIR.glob(f'{X730}*.service'):
         unit_file.unlink()
 
     subprocess.run(
         args=[
-            'uv', 'tool', 'uninstall', 'x730'
+            'uv', 'tool', 'uninstall', X730
         ],
         cwd=SELF_DIR,
-        env={
-                'UV_TOOL_DIR': str(UV_TOOL_DIR),
-                'UV_TOOL_BIN_DIR': str(UV_TOOL_BIN_DIR),
-            } | dict(os.environ),
+        env=UV_ENV,
         check=True
     )
 
 
-@Target(name="all", default=True)
-def _all():
-    target_test()
-    target_build()
-    print("All done.")
+@Target(name="help", default=True)
+def _help():
+    print("Available targets:")
+    for name, target in targets.items():
+        print(f"\t - {name}")
 
 
 ########

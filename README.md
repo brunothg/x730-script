@@ -1,6 +1,6 @@
 # x730
 
-Command line interface for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi.
+Command line interface and driver for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi.
 
 > [!NOTE]
 > 
@@ -11,8 +11,8 @@ Command line interface for controlling the [Geekworm X730 expansion board](https
 ## Prerequisites
 
 1. OS supporting `systemd` and [gpiozero](https://pypi.org/project/gpiozero/)
-2. `python3`
-3. `uv`
+2. `uv`
+3. `python3` (3.11+ optional)
 
 
 ## Development
@@ -20,29 +20,54 @@ Command line interface for controlling the [Geekworm X730 expansion board](https
 In order to run the program without installation and/or compiling uvx (e.g. `uvx --refresh . -vvvv --help`) can be used.
 
 For building, testing etc. you should use the `Makefile.py` file (a make like CLI).
-For example, you could run `python3 Makefile.py test` or `python3 Makefile.py build`.
+For example, you could run `uv run Makefile.py test` or `uv run Makefile.py build`.
 
 
 ## Installation
 
-The default installation process is as easy as calling `python3 Makefile.py install`.
+The default installation process is as easy as calling `uv run Makefile.py install`.
 This will use `uv tool install` internally.
-By default, the installation directory will be `/opt/uv/tools/...` (or `UV_TOOL_DIR` env) for python files.
-Binary links are written to `/usr/locla/bin` (or `UV_TOOL_BIN_DIR` env).
-SystemD Unit files will be installed into `/etc/systemd/system/`.
+By default, the installation directory will be `/opt/uv/tools/...` for python files
+and `/opt/uv/python` for python itself (if required).
+Binary links are written to `/usr/local/bin/...`.
+SystemD Unit files will be installed into `/etc/systemd/system/...`.
 So you'll need sudo rights for those default installation paths.
 
 > [!IMPORTANT]
 > 
 > Most uv installations are not available globally and because of this not accessible using sudo.
 > To work around this issue you can explicitly install uv for root.
-> Or alternatively use your users `PATH` env (e.g. `sudo env PATH="$PATH" python3 Makefile.py install`).
+> Or alternatively use your users `PATH` env (e.g. `sudo env PATH="$PATH" uv run Makefile.py install`).
 
+> [!IMPORTANT]
+> 
+> Do not activate the projects virtual environment.
+> This will likely force uv to install into the venv instead of the desired location.
+> Even `UV_*` environment variables may/will be ignored.
 
 > [!TIP]
 > 
 > For more information about `uv` and the way you can interfere with the installation process visit their website:
 > [uv](https://docs.astral.sh/uv/) or [uv tool docs](https://docs.astral.sh/uv/reference/cli/#uv-tool)
+
+
+As an alternative you could consider an installation using `pipx`.
+Install `pipx` directly or use `uvx pipx`.
+You'll need `pipx` in version 1.5.0+.
+First build a wheel (`uv run Makefile.py build`), then install it with `sudo pipx --global install dist/x730*.whl`.
+For more details visit [pipx docs](https://pipx.pypa.io/latest/docs/).
+
+
+## Update
+
+Direct updates may work, but are not supported.
+Instead, you should uninstall the current version.
+Afterward you can download and install the new version.
+
+> [!NOTE]
+> 
+> You may use this shell command:  
+> `uv run Makefile.py uninstall && git pull && uv run Makefile.py install`
 
 
 ## Usage

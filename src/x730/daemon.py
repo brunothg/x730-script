@@ -1,153 +1,119 @@
 import dataclasses
 import functools
+import inspect
 import json
 import logging
 import os
 import socket
-import stat
+import sys
+import tempfile
 import threading
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
-from os import PathLike
 from pathlib import Path
-from typing import TypeAlias, Optional, Any, Callable, Self
+from typing import Optional, Any, Callable, Self
 
 from .x730 import X730
 
+DEFAULT_NAME: str = f"{(Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__}"
 
-def _fq_name(obj: Any) -> str:
-    return f"{obj.__module__}.{obj.__qualname__}"
+DEFAULT_RUN_DIR: Path = Path((
+                                     [
+                                         p for p in
+                                         (Path(p).resolve() for p in [
+                                             "/run",
+                                             "/var/run",
+                                             f"/run/user/{os.geteuid()}",
+                                             f"/var/run/user/{os.geteuid()}",
+                                         ])
+                                         if (p.exists()
+                                             and p.is_dir()
+                                             and os.access(p, os.W_OK | os.X_OK, effective_ids=True))
+                                     ]
+                                     or [tempfile.gettempdir()]
+                             )[0]) / f"{DEFAULT_NAME}"
 
-
-def _sock_receive_all(sock, limit: Optional[int] = None) -> bytes:
-    buffer = bytearray()
-    while True:
-        if not (limit is None or len(buffer) < limit):
-            raise OverflowError("socket receive limit exceeded")
-        data = sock.recv(4096 if limit is None else limit - len(buffer))
-        if not data:  # Socket closed
-            break
-        buffer.extend(data)
-    return bytes(buffer)
-
-
-def _unix_sockets_supported() -> bool:
-    """
-    Test if unix sockets are supported.
-    :return: True if unix sockets are supported, else False.
-    """
-    try:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.close()
-        return True
-    except (OSError, AttributeError):
-        return False
-
-
-UX_ADDR: TypeAlias = str | Path | PathLike[str]
-IP_ADDR: TypeAlias = tuple[str, int]
-ADDR: TypeAlias = UX_ADDR | IP_ADDR
-
-
-def _is_ip_address(addr: ADDR) -> bool:
-    return isinstance(addr, tuple)
-
-
-def _is_ux_addr(addr: ADDR) -> bool:
-    return not _is_ip_address(addr)
-
-
-_DEFAULT_UX_ADDR: UX_ADDR = Path("/var/run/x730/x730.sock")
-_DEFAULT_IP_ADDR: IP_ADDR = ("localhost", 24730)
-_DEFAULT_ADDR: ADDR = _DEFAULT_UX_ADDR if _unix_sockets_supported() else _DEFAULT_IP_ADDR
-
-
-def _is_unix_socket_active(addr: UX_ADDR) -> bool:
-    addr_path = Path(addr)
-    if not addr_path.exists() or not stat.S_ISSOCK(os.stat(addr_path).st_mode):
-        return False
-    try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-            client.connect(addr)
-        return True
-    except Exception:
-        return False
-
-
-def _prepare_ux_addr(addr: UX_ADDR):
-    addr_path = Path(addr)
-    addr_dir = addr_path.parent
-    addr_dir.mkdir(parents=True, exist_ok=True)
-    if not _is_unix_socket_active(addr):
-        addr_path.unlink()
-
-
-def _clean_ux_addr(addr: UX_ADDR):
-    addr_path = Path(addr)
-    addr_path.unlink()
-
-
-def _create_socket(addr: ADDR) -> socket.socket:
-    _socket: socket.socket
-    if _is_ux_addr(addr):
-        _socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    else:
-        _socket = socket.socket(
-            socket.AF_INET6 if socket.has_dualstack_ipv6() else socket.AF_INET
-            , socket.SOCK_STREAM
-        )
-    return _socket
-
-
-_DEFAULT_RX_LIMIT: int = 10 * 1024 * 1024
-_DEFAULT_SOCKET_TIMEOUT: float = 5
+DEFAULT_PID_FILE: Path = DEFAULT_RUN_DIR / f"{DEFAULT_NAME}.pid"
+DEFAULT_SOCK_FILE: Path = DEFAULT_RUN_DIR / f"{DEFAULT_NAME}.sock"
 
 
 class API:
     """
-    API collection
+    Decorator for APIs.
     """
-    _apis: dict[str, Callable] = {}
 
-    @classmethod
-    def get(cls, api_id: str) -> Callable:
-        """
-        Get api method by id
-        :param api_id: The api id
-        :return: The api method
-        """
-        return cls._apis[api_id]
+    _decorator_attr = f"_{__name__}_api"
+
+    DEFAULT_API_ID: str = ''
 
     @classmethod
     def api_id(cls, func: Callable) -> str:
         """
-        Get api id for method
-        :param func: The api method
-        :return: The api id
+        Generate default API ID for function
+
+        Args:
+            func: The function to generate an API ID for
         """
-        return _fq_name(func)
+        return f"{func.__qualname__}"
 
     @classmethod
-    def expose(cls, func: Optional[Callable] = None) -> Callable:
+    def get_apis(cls, clazz: type) -> list[Self]:
         """
-        Decorator to register an API function.
-        :param func: The function to expose as an API.
-        :return: The API function.
+        Get all APIs defined in a class
+
+        Args:
+            clazz: The class to get APIs for
+
+        Returns:
+            The list of APIs
         """
-        def decorator(_func: Callable) -> Callable:
-            api_id = API.api_id(func)
-            cls._apis[api_id] = _func
+        return [
+            api for api in (
+                API.get_api(func) for name, func
+                in inspect.getmembers(clazz, inspect.isfunction)
+            ) if api is not None
+        ]
 
-            @functools.wraps(_func)
-            def wrapper(self: 'Daemon', *args: Any, **kwargs: Any) -> Any:
-                return self._api_call(api_id, *args, **kwargs)
+    @classmethod
+    def get_api(cls, func: Callable) -> Optional[Self]:
+        """
+        Get an API from a function
 
-            return wrapper
+        Args:
+            func: The function to get a API from
 
-        if callable(func):
-            return decorator(func)
-        else:
-            return decorator
+        Returns:
+            The API or None
+        """
+        return getattr(func, cls._decorator_attr, None)
+
+    @classmethod
+    def set_api(cls, func: Callable, value: Self) -> None:
+        """
+        Set an API for a function
+
+        Args:
+            func: The function to set a API for
+            value: The API to set
+
+        Returns:
+            None
+        """
+        setattr(func, API._decorator_attr, value)
+
+    def __init__(self, api_id: str):
+        self.api_id: str = api_id
+
+    def __call__(self, func: Callable) -> Callable:
+        self.func = func
+        self.api = self.api_id or API.get_api(func)
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            func(*args, **kwargs)
+
+        API.set_api(wrapper, self)
+        return wrapper
 
 
 class Daemon(ABC):
@@ -156,17 +122,32 @@ class Daemon(ABC):
     """
     _LOG = logging.getLogger(__name__)
 
-    def __init__(self):
-        self._x730 = X730()
+    def __init__(
+            self,
+            pid_file: Path = DEFAULT_PID_FILE,
+            sock_file: Path = DEFAULT_SOCK_FILE,
+    ):
+        self._pid_file = pid_file
+        self.sock_file = sock_file
 
-    @abstractmethod
-    def _api_call(self, api_id: str, *args, **kwargs) -> Any:
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any):
+        self.close()
+
+    def _reboot(self) -> None:
         """
-        Called when an API call is made.
-        :param api_id: The API ID.
-        :param args: The API args.
-        :param kwargs: The API kwargs.
-        :return: The API response.
+        See Also:
+            reboot(): The corresponding API method
+        """
+        raise NotImplementedError()
+
+    def _poweroff(self, force: bool = False) -> None:
+        """
+        See Also:
+            poweroff(): The corresponding API method
         """
         raise NotImplementedError()
 
@@ -175,28 +156,28 @@ class Daemon(ABC):
         Open the daemon.
         :return:
         """
-        self._x730.open()
+        pass
 
     def close(self) -> None:
         """
         Close the daemon.
         :return:
         """
-        self._x730.close()
+        pass
 
-    @API.expose
+    @API(api_id=API.DEFAULT_API_ID)
     def reboot(self) -> None:
         """
         See: `X730.reboot`
         """
-        self._x730.reboot()
+        self._reboot()
 
-    @API.expose
+    @API(api_id=API.DEFAULT_API_ID)
     def poweroff(self, force: bool = False) -> None:
         """
         See: `X730.poweroff`
         """
-        self._x730.poweroff(force=force)
+        self._poweroff(force=force)
 
 
 @dataclass

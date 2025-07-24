@@ -10,17 +10,16 @@ readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: Unix",
-    "Operating System :: POSIX :: Linux",
 ]
 license = "Apache-2.0"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
     "gpiozero~=2.0.0",
+    "lgpio~=0.2.2",
 ]
-
 
 [project.urls]
 Homepage = "https://github.com/brunothg/x730-script"
@@ -32,5 +31,5 @@ Issues = "https://github.com/brunothg/x730-script/issues"
 x730 = "x730:main"
 
 [build-system]
-requires = ["hatchling>=1.27"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.8.0,<0.9"]
+build-backend = "uv_build"

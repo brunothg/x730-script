@@ -5,7 +5,7 @@ After=local-fs.target
 [Service]
 Type=exec
 RemainAfterExit=no
-ExecStart=/usr/local/bin/x730 daemon
+ExecStart=${x730} -vvv daemon
 
 [Install]
 WantedBy=multi-user.target
