@@ -18,6 +18,7 @@ license = "Apache-2.0"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
     "gpiozero~=2.0.0",
+    "lgpio~=0.2.2",
 ]
 
 [project.urls]
