@@ -16,20 +16,35 @@ from typing import Optional, Any, Callable, Self
 from .x730 import X730
 
 DEFAULT_SOCK_FILE: Path = Path((
-                                     [
-                                         p for p in
-                                         (Path(p).resolve() for p in [
-                                             "/run",
-                                             "/var/run",
-                                             f"/run/user/{os.geteuid()}",
-                                             f"/var/run/user/{os.geteuid()}",
-                                         ])
-                                         if (p.exists()
-                                             and p.is_dir()
-                                             and os.access(p, os.W_OK | os.X_OK, effective_ids=True))
-                                     ]
-                                     or [tempfile.gettempdir()]
-                             )[0]) / f"{(Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__}.sock"
+                                       [
+                                           p for p in
+                                           (Path(p).resolve() for p in [
+                                               "/run",
+                                               "/var/run",
+                                               f"/run/user/{os.geteuid()}",
+                                               f"/var/run/user/{os.geteuid()}",
+                                           ])
+                                           if (p.exists()
+                                               and p.is_dir()
+                                               and os.access(p, os.W_OK | os.X_OK, effective_ids=True))
+                                       ]
+                                       or [tempfile.gettempdir()]
+                               )[
+                                   0]) / f"{(Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__}.sock"
+
+DEFAULT_RX_LIMIT: int = 10 * 1024 * 1024
+
+
+def _sock_receive_all(sock, limit: Optional[int] = None) -> bytes:
+    buffer = bytearray()
+    while True:
+        if not (limit is None or len(buffer) < limit):
+            raise OverflowError("socket receive limit exceeded")
+        data = sock.recv(4096 if limit is None else limit - len(buffer))
+        if not data:  # Socket closed
+            break
+        buffer.extend(data)
+    return bytes(buffer)
 
 
 class API:
@@ -119,11 +134,11 @@ class Daemon(ABC):
 
     def __init__(
             self,
-            pid_file: Path = DEFAULT_PID_FILE,
             sock_file: Path = DEFAULT_SOCK_FILE,
+            buffer_size: int = DEFAULT_RX_LIMIT,
     ):
-        self._pid_file = pid_file
         self.sock_file = sock_file
+        self._buffer_size = buffer_size
 
     def __enter__(self):
         self.open()
@@ -163,14 +178,16 @@ class Daemon(ABC):
     @API(api_id=API.DEFAULT_API_ID)
     def reboot(self) -> None:
         """
-        See: `X730.reboot`
+        See Also:
+            X730.reboot
         """
         self._reboot()
 
     @API(api_id=API.DEFAULT_API_ID)
     def poweroff(self, force: bool = False) -> None:
         """
-        See: `X730.poweroff`
+        See Also:
+            X730.poweroff
         """
         self._poweroff(force=force)
 
@@ -293,37 +310,50 @@ class Client(Daemon):
     """
     _LOG = logging.getLogger(__name__)
 
-    def __init__(
-            self,
-            addr: Optional[ADDR] = None,
-            buffer_size: Optional[int] = None,
-            socket_timeout: Optional[float] = _DEFAULT_SOCKET_TIMEOUT,
-    ):
-        super().__init__()
-        self._addr = addr or _DEFAULT_ADDR
-        self._buffer_size = buffer_size or _DEFAULT_RX_LIMIT
-        self._socket_timeout = socket_timeout
+    @classmethod
+    def static_init(cls):
+        cls._patch_apis()
 
-    def __enter__(self):
-        self.open()
-        return self
+    @classmethod
+    def _patch_apis(cls) -> None:
+        """
+        Patch all API functions.
 
-    def __exit__(self, exc_type: Any, exc: Any, tb: Any):
-        self.close()
+        Returns:
+            None
+        """
+        for api in API.get_apis(cls):
+            setattr(cls, api.func.__name__, cls._make_patch(api))
 
-    def _connect(self) -> socket.socket:
-        _socket = _create_socket(self._addr)
-        _socket.connect(self._addr)
-        _socket.settimeout(self._socket_timeout)
-        return _socket
+    @classmethod
+    def _make_patch(cls, api: API):
+        """
+        Make an API patch function.
+        Instead of invoking the patched function an API call will be sent to the daemon.
 
-    def _api_call(self, api_id: str, *args, **kwargs) -> Any:
-        Client._LOG.debug(f"Client API call {api_id}: args: {args}, kwargs: {kwargs}")
-        with self._connect() as client:
-            api_request = ApiRequest(api_id=api_id, args=args, kwargs=kwargs)
-            client.sendall(api_request.to_json().encode())
+        Args:
+            api: The API to patch for.
 
-            api_response = ApiResponse.from_json(_sock_receive_all(client, self._buffer_size).decode())
+        Returns:
+            The patched function.
+        """
+
+        @functools.wraps(api.func)
+        def wrapper(self: Self, *args: Any, **kwargs: dict[str, Any]) -> Any:
+            api_request = ApiRequest(api_id=api.api_id, args=args, kwargs=kwargs)
+            api_response = self._api_call(api_request)
             if api_response.exception:
                 raise IOError(api_response.response)
             return api_response.response
+
+        return wrapper
+
+    def _api_call(self, request: ApiRequest) -> ApiResponse:
+        Client._LOG.debug(f"Client API call: {request}")
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.sendall(request.to_json().encode())
+            response = ApiResponse.from_json(_sock_receive_all(client, self._buffer_size).decode())
+            return response
+
+
+Client.static_init()
