@@ -22,6 +22,12 @@ In order to run the program without installation and/or compiling uvx (e.g. `uvx
 For building, testing etc. you should use the `Makefile.py` file (a make like CLI).
 For example, you could run `uv run Makefile.py test` or `uv run Makefile.py build`.
 
+> [!TIP]
+> 
+> If developing on a system other than a Pi with x730 case you may want to use gpoizero's mock pins.
+> You can set it in code: `Device.pin_factory = MockFactory(revision='d03114')`
+> or with an environment variable: `GPIOZERO_PIN_FACTORY=mock`.
+
 
 ## Installation
 
