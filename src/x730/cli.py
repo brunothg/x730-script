@@ -20,7 +20,7 @@ class CLI:
             epilog="Command line interface for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi."
         )
         self._parser.add_argument('-v', '--verbose', action='count', default=0, help="Increase verbosity")
-        self._parser.add_argument('-p', '--pid-file', type=Path, default=DAEMON_DEFAULT_PID_FILE, dest='pid_file',
+        self._parser.add_argument('-f', '--pid-file', type=Path, default=DAEMON_DEFAULT_PID_FILE, dest='pid_file',
                                   help=f"PID file to use")
         subparsers = self._parser.add_subparsers(title="command", dest='command_name', required=False)
 
