@@ -283,7 +283,7 @@ class Server(Daemon):
 
     def serve_until(self, stop_event: Optional[threading.Event] = None) -> None:
         """
-        Serve until stop_event is set or forever, if not stop_event is provided.
+        Serve until stop_event is set or forever, if no stop_event is provided.
 
         Args:
             stop_event: Event to stop serving
