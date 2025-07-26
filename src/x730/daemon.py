@@ -15,9 +15,7 @@ from typing import Optional, Any, Callable, Self
 
 from .x730 import X730
 
-DEFAULT_NAME: str = f"{(Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__}"
-
-DEFAULT_RUN_DIR: Path = Path((
+DEFAULT_SOCK_FILE: Path = Path((
                                      [
                                          p for p in
                                          (Path(p).resolve() for p in [
@@ -31,10 +29,7 @@ DEFAULT_RUN_DIR: Path = Path((
                                              and os.access(p, os.W_OK | os.X_OK, effective_ids=True))
                                      ]
                                      or [tempfile.gettempdir()]
-                             )[0]) / f"{DEFAULT_NAME}"
-
-DEFAULT_PID_FILE: Path = DEFAULT_RUN_DIR / f"{DEFAULT_NAME}.pid"
-DEFAULT_SOCK_FILE: Path = DEFAULT_RUN_DIR / f"{DEFAULT_NAME}.sock"
+                             )[0]) / f"{(Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__}.sock"
 
 
 class API:

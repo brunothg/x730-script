@@ -5,8 +5,7 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from .daemon import Server as DaemonServer, Client as DaemonClient
-from .daemon import DEFAULT_PID_FILE as DAEMON_DEFAULT_PID_FILE, DEFAULT_SOCK_FILE as DAEMON_DEFAULT_SOCK_FILE
+from .daemon import Server as DaemonServer, Client as DaemonClient, DEFAULT_SOCK_FILE as DAEMON_DEFAULT_SOCK_FILE
 
 
 class CLI:
@@ -21,8 +20,8 @@ class CLI:
             epilog="Command line interface for controlling the [Geekworm X730 expansion board](https://wiki.geekworm.com/X730) for the Raspberry Pi."
         )
         self._parser.add_argument('-v', '--verbose', action='count', default=0, help="Increase verbosity")
-        self._parser.add_argument('-p', '--pid-file', type=Path, default=DAEMON_DEFAULT_PID_FILE, dest='pid_file',
-                                  help=f"PID file to use")
+        self._parser.add_argument('-f', '--sock-file', type=Path, default=DAEMON_DEFAULT_SOCK_FILE, dest='sock_file',
+                                  help=f"Socket file to use")
         subparsers = self._parser.add_subparsers(title="command", dest='command_name', required=False)
 
         shutdown_parser = subparsers.add_parser('shutdown', help="Shutdown the system")
@@ -47,7 +46,6 @@ class CLI:
     def shutdown(
             self,
             reboot: bool = False,
-            pid_file: Path = Path(DAEMON_DEFAULT_PID_FILE),
             sock_file: Path = Path(DAEMON_DEFAULT_SOCK_FILE),
     ) -> None:
         """
@@ -55,13 +53,12 @@ class CLI:
 
         Args:
             reboot:  If true, reboot the system, else shutdown the system
-            pid_file: PID file to use
             sock_file: Socket file to use
 
         Returns:
             None
         """
-        with DaemonClient(pid_file=pid_file, sock_file=sock_file) as client:
+        with DaemonClient(sock_file=sock_file) as client:
             if reboot:
                 client.reboot()
             else:
@@ -69,20 +66,18 @@ class CLI:
 
     def daemon(
             self,
-            pid_file: Path = Path(DAEMON_DEFAULT_PID_FILE),
             sock_file: Path = Path(DAEMON_DEFAULT_SOCK_FILE),
     ) -> None:
         """
         Start the X730 expansion board daemon
 
         Args:
-            pid_file: PID file to use
             sock_file: Socket file to use
 
         Returns:
             None
         """
-        with DaemonServer(pid_file=pid_file, sock_file=sock_file) as server:
+        with DaemonServer(sock_file=sock_file) as server:
             server.serve_until()
 
     def verbose(self, level: int) -> None:
