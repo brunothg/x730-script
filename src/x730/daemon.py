@@ -8,6 +8,7 @@ import socket
 import sys
 import tempfile
 import threading
+import fcntl
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,7 @@ from typing import Optional, Any, Callable, Self
 
 from .x730 import X730
 
+DEFAULT_NAME: str = (Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__
 DEFAULT_SOCK_FILE: Path = Path((
                                        [
                                            p for p in
@@ -29,9 +31,11 @@ DEFAULT_SOCK_FILE: Path = Path((
                                                and os.access(p, os.W_OK | os.X_OK, effective_ids=True))
                                        ]
                                        or [tempfile.gettempdir()]
-                               )[
-                                   0]) / f"{(Path(sys.argv[0]).name if len(sys.argv) > 0 else None) or X730.__name__}.sock"
+                               )[0]) \
+                          / "DEFAULT_NAME" \
+                          / f"{DEFAULT_NAME}.sock"
 
+DEFAULT_SOCKET_TIMEOUT: float = 5
 DEFAULT_RX_LIMIT: int = 10 * 1024 * 1024
 
 
@@ -137,7 +141,8 @@ class Daemon(ABC):
             sock_file: Path = DEFAULT_SOCK_FILE,
             buffer_size: int = DEFAULT_RX_LIMIT,
     ):
-        self.sock_file = sock_file
+        self._sock_file = sock_file
+        self._lock_file = sock_file.with_suffix(".lock")
         self._buffer_size = buffer_size
 
     def __enter__(self):
@@ -228,19 +233,18 @@ class Server(Daemon):
 
     def __init__(
             self,
-            addr: Optional[ADDR] = None,
-            buffer_size: Optional[int] = None,
+            sock_file: Path = DEFAULT_SOCK_FILE,
+            buffer_size: int = DEFAULT_RX_LIMIT,
             backlog_size: Optional[int] = None,
-            accept_timeout: Optional[float] = _DEFAULT_SOCKET_TIMEOUT,
-            client_timeout: Optional[float] = _DEFAULT_SOCKET_TIMEOUT,
+            accept_timeout: Optional[float] = DEFAULT_SOCKET_TIMEOUT,
+            client_timeout: Optional[float] = DEFAULT_SOCKET_TIMEOUT,
     ):
-        super().__init__()
-        self._addr = addr or _DEFAULT_ADDR
-        self._socket: Optional[socket.socket] = None
-        self._buffer_size = buffer_size or _DEFAULT_RX_LIMIT
+        super().__init__(sock_file=sock_file, buffer_size=buffer_size)
         self._backlog_size = backlog_size
+        self._socket: Optional[socket.socket] = None
         self._accept_timeout = accept_timeout
         self._client_timeout = client_timeout
+        self._x730 = X730()
 
     def __enter__(self):
         self.open()
@@ -249,30 +253,69 @@ class Server(Daemon):
     def __exit__(self, exc_type: Any, exc: Any, tb: Any):
         self.close()
 
-    def _api_call(self, api_id: str, *args, **kwargs) -> Any:
-        Server._LOG.debug(f"Server API call {api_id}: args: {args}, kwargs: {kwargs}")
-        return API.get(api_id)(*args, **kwargs)
+    def _reboot(self) -> None:
+        self._x730.reboot()
 
-    def _client_handler(self, client: socket.socket) -> None:
-        client.settimeout(self._client_timeout)
-        api_raw_request = _sock_receive_all(client, self._buffer_size).decode()
-        if not api_raw_request:
-            return
+    def _poweroff(self, force: bool = False) -> None:
+        self._x730.poweroff(force = force)
 
-        api_request = ApiRequest.from_json(api_raw_request)
-        api_response: ApiResponse
+    def _setup_socket(self):
+        lock_file = self._lock_file
+        Server._LOG.debug(f"Create lock {lock_file}")
+        lock_file.parent.mkdir(parents=True, exist_ok=True)
+        lock_fd = open(lock_file, "w")
         try:
-            response = self._api_call(api_request.api_id, *api_request.args, **api_request.kwargs)
-            api_response = ApiResponse(api_id=api_request.api_id, response=response, exception=False)
-        except Exception as e:
-            api_response = ApiResponse(api_id=api_request.api_id, response=str(e), exception=True)
-        client.sendall(api_response.to_json().encode())
+            Server._LOG.debug(f"Lock file {lock_file}")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as e:
+            lock_fd.close()
+            Server._LOG.debug(f"Locking {lock_file} failed: {e}")
+            raise e
+        self._lock_fd = lock_fd
+
+        sock_file = self._sock_file
+        sock_file.parent.mkdir(parents=True, exist_ok=True)
+        if sock_file.exists():
+            sock_file.unlink()
+        if not self._socket:
+            self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self._socket.bind(str(self._sock_file))
+            self._socket.listen(self._backlog_size) if self._backlog_size else self._socket.listen()
+            self._socket.settimeout(self._accept_timeout)
+
+    def _teardown_socket(self):
+        _socket = self._socket
+        sock_file = self._sock_file
+        lock_file = self._lock_file
+        lock_fd = self._lock_fd
+
+        try:
+            if _socket is not None:
+                _socket.close()
+                sock_file.unlink()
+
+            if lock_fd is not None:
+                Server._LOG.debug(f"Release lock file {lock_file}")
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            if lock_fd is not None:
+                lock_fd.close()
+            lock_file.unlink()
 
     def serve(self):
-        with self._socket.accept()[0] as client:
-            self._client_handler(client)
+        # TODO serve
+        pass
 
-    def serve_until(self, stop_event: Optional[threading.Event] = None):
+    def serve_until(self, stop_event: Optional[threading.Event] = None) -> None:
+        """
+       Serve until stop_event is set or forever, if no stop_event is provided.
+
+       Args:
+           stop_event: Event to stop serving
+
+       Returns:
+           None
+       """
         if stop_event is not None:
             stop_event.clear()
 
@@ -284,21 +327,14 @@ class Server(Daemon):
 
     def open(self) -> None:
         super().open()
-        if not self._socket:
-            if _is_ux_addr(self._addr):
-                _prepare_ux_addr(self._addr)
-            self._socket = _create_socket(self._addr)
-            self._socket.bind(self._addr)
-            self._socket.listen(self._backlog_size) if self._backlog_size else self._socket.listen()
-            self._socket.settimeout(self._accept_timeout)
+
+        self._x730.open()
+        self._setup_socket()
 
     def close(self) -> None:
         try:
-            if self._socket:
-                self._socket.close()
-                if _is_ux_addr(self._addr):
-                    _clean_ux_addr(self._addr)
-
+            self._teardown_socket()
+            self._x730.close()
         finally:
             self._socket = None
             super().close()
@@ -350,7 +386,18 @@ class Client(Daemon):
 
     def _api_call(self, request: ApiRequest) -> ApiResponse:
         Client._LOG.debug(f"Client API call: {request}")
+        with open(self._lock_file, "r+") as lock_fd:
+            try:
+                Client._LOG.debug("Test lock file is locked by daemon.")
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                Client._LOG.debug("Failed to connect to sock. Not locked by daemon. Assuming not running.")
+                raise RuntimeError("Failed to connect to sock. Daemon not running.")
+            except OSError as e:
+                Client._LOG.debug(f"Pid file is locked by daemon: {e}")
+
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.connect(str(self._sock_file))
             client.sendall(request.to_json().encode())
             response = ApiResponse.from_json(_sock_receive_all(client, self._buffer_size).decode())
             return response
